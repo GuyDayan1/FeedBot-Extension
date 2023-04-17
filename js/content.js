@@ -2,6 +2,8 @@ import * as utils from "./utils/utils";
 import Swal from "sweetalert2";
 import * as globals from "./utils/globals"
 import {sleep} from "./utils/utils";
+import { read, writeFileXLSX } from "xlsx";
+
 
 
 let headerElement;

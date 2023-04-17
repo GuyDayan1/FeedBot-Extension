@@ -16,7 +16,7 @@
     {
       "matches": ["https://web.whatsapp.com/*", "https://api.whatsapp.com/*"],
       "css": ["css/content.css" , "css/modal.css" , "node_modules/sweetalert2/dist/sweetalert2.css"],
-      "js": ["dist/bundle.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js"]
+      "js": ["dist/bundle.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js", "node_modules/xlsx/dist/xlsx.full.min.js"]
     }
   ],
 

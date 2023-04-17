@@ -5,7 +5,8 @@
   },
   "dependencies": {
     "sweetalert": "^2.1.2",
-    "sweetalert2": "^11.7.3"
+    "sweetalert2": "^11.7.3",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.19.2/xlsx-0.19.2.tgz"
   },
   "scripts": {
     "build": "webpack"
