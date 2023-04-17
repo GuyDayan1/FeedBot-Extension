@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link href="https://fonts.googleapis.com/css?family=Roboto:400,700&display=swap" rel="stylesheet">
+    <title>Schedule Modal</title>
+</head>
+<body>
+<div id="myModal" class="ui modal">
+    <div class="close-modal-container">
+        <button type="button" id="close-modal" data-dismiss="modal">&times;</button>
+    </div>
+    <div class="ui center aligned container">
+        <div class="header">
+            <h2 class="ui header">תזמון הודעות</h2>
+        </div>
+    </div>
+    <form>
+        <div class="content-container">
+            <label for="message">תוכן ההודעה</label>
+            <textarea id="message" class="message-textarea" placeholder="תוכן ההודעה..." style="resize:none;"></textarea>
+        </div>
+    </form>
+    <div class="time-container">
+        <div class="scheduler-time-container">
+            <div class="minute-container">
+                <label for="minute">דקה</label>
+                <select name="minutePicker" id="minute" class="custom-dropdown"></select>
+            </div>
+            <div class="hour-container">
+                <label for="hour">שעה</label>
+                <select name="hourPicker" id="hour" class="custom-dropdown"></select>
+            </div>
+            <div class="date-container">
+                <label for="datepicker">תאריך</label>
+                <input type="date" name="datePicker" id="datepicker" class="custom-date-input">
+            </div>
+        </div>
+    </div>
+    <div class="buttons-container">
+        <div id="cancel-modal-button" class="custom-cancel-button">בטל</div>
+        <div id="send-button">תזמן</div>
+    </div>
+</div>
+</body>
+</html>
+
+

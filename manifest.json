@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "FeedBot",
+  "description": "FeedBot extension",
+  "version": "1.0.1",
+  "background": {
+    "service_worker": "js/background.js"
+  },
+  "options_ui": {
+    "page" : "html/options.html"  ,
+    "open_in_tab" : false
+  },
+  "permissions": [ "identity", "identity.email", "storage", "unlimitedStorage", "contextMenus" ,"tabs", "scripting","activeTab"],
+  "host_permissions": ["https://web.whatsapp.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*", "https://api.whatsapp.com/*"],
+      "css": ["css/content.css" , "css/modal.css" , "node_modules/sweetalert2/dist/sweetalert2.css"],
+      "js": ["dist/bundle.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js"]
+    }
+  ],
+
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*" ,"html/*" , "css/modal.css"],
+      "matches": ["https://web.whatsapp.com/*"]
+    }
+  ],
+  "icons": {
+    "16": "images/feedbot-icon.png",
+    "48": "images/feedbot-icon.png",
+    "128": "images/feedbot-icon.png"
+  },
+  "action": {
+    "default_popup": "html/popup.html"
+  }
+}
