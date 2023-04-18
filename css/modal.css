@@ -11,9 +11,8 @@
     width: 60%;
     max-width: 800px;
     padding: 20px;
-    border-radius: 5px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    border: black 2px solid;
+    box-shadow: 0 2px 5px rgba(31,30,47,.7);
+    border-radius: 10px;
 }
 
 .close-modal-container {
@@ -23,10 +22,11 @@
 
 #close-modal {
     font-size: 2rem;
-    color: #000;
     height: auto;
     width: auto;
     display: flex;
+    color: #f1646c;
+    text-shadow: -1px 0 2px rgba(241,100,108,.5);
     justify-content: center;
     align-items: center;
 }
@@ -139,6 +139,7 @@
 .minute-container select,
 .date-container input[type=date] {
     width: 100%;
+    font-size: 1em;
     box-sizing: border-box;
     padding: 0.5em;
     font-family: 'Roboto', sans-serif;
