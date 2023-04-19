@@ -24,6 +24,11 @@ export function getSchedulerMessages() {
                 reject([]);
             } else {
                 const schedulerMessages = result.schedulerMessages || [];
+                if (schedulerMessages.length > 1){
+                    schedulerMessages.sort((a,b)=>{
+                        return (a.scheduledTime - b.scheduledTime)
+                    })
+                }
                 resolve(schedulerMessages);
             }
         });
@@ -69,6 +74,14 @@ export const areArrayEqual = (arr1, arr2)=>{
         }
     }
     return true;
+}
+export const containsDuplicates = (array) => {
+    return array.length !== new Set(array).size;
+}
+
+export const schedulingTimeAlreadyExist = (schedulerMessages) => {
+  const scheduledTimes = schedulerMessages.map(item=> {return item.scheduledTime})
+    return containsDuplicates(scheduledTimes);
 }
 
 export const simulateKeyPress = (type,keyName) => {    //type = which action to do simulate  , keyName = which key to action

@@ -1,13 +1,13 @@
-import * as utils from "./utils/utils";
+import * as Utils from "./utils/utils";
 import Swal from "sweetalert2";
-import * as globals from "./utils/globals"
-import {getSchedulerMessages, sleep} from "./utils/utils";
+import * as Globals from "./utils/globals"
+import {getSchedulerMessages, schedulingTimeAlreadyExist, sleep} from "./utils/utils";
 import { read, writeFileXLSX } from "xlsx";
 import {
     CLIENT_LANGUAGE,
     DEFAULT_WHATSAPP_CHAT_PLACEHOLDER, ENGLISH_IDENTIFIER_PARAM,
     FEEDBOT_LIST_OPTIONS,
-    HEBREW_IDENTIFIER_PARAM
+    HEBREW_IDENTIFIER_PARAM, REGULAR_STATE, UNUSED_STATE
 } from "./utils/globals";
 
 
@@ -31,6 +31,7 @@ let messageSchedulerModal;
 let schedulerModal;
 let emptyMessagesAlert;
 let popupBackground;
+let clientState = {type : UNUSED_STATE};
 
 
 
@@ -60,25 +61,13 @@ async function setMessagesTimeOut() {
     schedulerMessages = schedulerMessages.filter(item=> (!item.messageSent && !item.deleted))
     console.log("array after filter")
     console.log(schedulerMessages)
+
+
     for (let i =0 ; i < schedulerMessages.length ; i++){
         let currentMessage = schedulerMessages[i];
         console.log("set time out to message number: " +currentMessage.id)
         const elapsedTime = currentMessage.scheduledTime - Date.now();
         await setTimeOutForMessage(currentMessage.id,currentMessage.chatTitleElement.chatName,elapsedTime,currentMessage.notifyBeforeSending);
-        // if (schedulerMessages[i].notifyBeforeSending){
-        //     setTimeout(async () => {
-        //         let userIsTyping = await checkForUserTyping(globals.USER_TYPING_WARNING_TIME)
-        //         if (userIsTyping){
-        //             showUserTypingAlert(globals.USER_TYPING_WARNING_TIME * globals.SECOND , schedulerMessages[i].chatTitleElement.chatName)
-        //             await utils.sleep(globals.USER_TYPING_WARNING_TIME)
-        //         }
-        //         sendMessage(schedulerMessages[i].id).then(()=>{console.log("message has been send")})
-        //     } , elapsedTime - (globals.USER_TYPING_WARNING_TIME * globals.SECOND))
-        // }else {
-        //     setTimeout(()=>{
-        //         sendMessage(schedulerMessages[i].id).then(()=>{console.log("message has been send")})
-        //     } , elapsedTime)
-        // }
     }
 
 }
@@ -126,6 +115,7 @@ function addFeedBotIcon() {
             if (CLIENT_LANGUAGE.includes(ENGLISH_IDENTIFIER_PARAM)){
                 DEFAULT_WHATSAPP_CHAT_PLACEHOLDER = "Type a message"
             }
+
             //utils.clearStorage()
         }
 
@@ -219,18 +209,18 @@ function addSchedulerListToDOM() {
 function addFeedBotOptionList() {
     const feedBotList = document.createElement("ul");
     feedBotList.className = "feedBot-list";
-    for (let i = 0; i < globals.FEEDBOT_LIST_OPTIONS.length; i++) {
+    for (let i = 0; i < Globals.FEEDBOT_LIST_OPTIONS.length; i++) {
         const listItem = document.createElement("li");
-        listItem.textContent = globals.FEEDBOT_LIST_OPTIONS[i];
+        listItem.textContent = Globals.FEEDBOT_LIST_OPTIONS[i];
         feedBotList.appendChild(listItem);
-        switch (globals.FEEDBOT_LIST_OPTIONS[i]) {
-            case globals.SCHEDULED_MESSAGES_PARAM:
+        switch (Globals.FEEDBOT_LIST_OPTIONS[i]) {
+            case Globals.SCHEDULED_MESSAGES_PARAM:
                 listItem.addEventListener("click", showScheduledMessages)
                 break;
             case "הגדרות":
                 listItem.addEventListener("click", openSettings);
                 break;
-            case globals.EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM:
+            case Globals.EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM:
                 listItem.addEventListener("click" , getAllGroupsParticipant)
                 break;
         }
@@ -297,8 +287,8 @@ async function showScheduledMessages() {
         const messagesList = document.getElementsByClassName("messages-list")[0];
         paneSideElement.style.display = "none"
         messagesContainerElement.style.display = "block"
-        await utils.clearChildesFromParent(messagesList)
-        const schedulerMessages = await utils.getSchedulerMessages();
+        await Utils.clearChildesFromParent(messagesList)
+        const schedulerMessages = await Utils.getSchedulerMessages();
         const relevantMessages = schedulerMessages.filter(item => (!item.messageSent) && (!item.deleted))
         if (relevantMessages.length > 0) {
             for (const item of relevantMessages) {
@@ -319,7 +309,7 @@ async function showScheduledMessages() {
                 const firstCellFrameChild = cellFrameTitleElement.childNodes[0];
                 const chatTextElement = firstCellFrameChild.childNodes[0]
                 const chatTitleItem = item.chatTitleElement;
-                await utils.clearChildesFromParent(firstCellFrameChild)
+                await Utils.clearChildesFromParent(firstCellFrameChild)
                 chatTextElement.title = chatTitleItem.chatName;
                 chatTextElement.textContent = chatTitleItem.chatName;
                 firstCellFrameChild.appendChild(chatTextElement)
@@ -343,7 +333,7 @@ async function showScheduledMessages() {
                 lastMessageStatus.title = item.message
                 lastMessageStatus.style.color = "#7e7a7a"
                 lastMessageStatus.style.fontWeight = "bold"
-                await utils.clearChildesFromParent(lastMessageStatus)
+                await Utils.clearChildesFromParent(lastMessageStatus)
                 // const chatNameTitle = firstCellFrameChild.childNodes[0];
                 let messageTextElement = chatTextElement.cloneNode(true)
                 messageTextElement.textContent = item.message
@@ -362,14 +352,15 @@ async function showScheduledMessages() {
                     cancelMessageButton.setAttribute("key", item.id)
                     cancelMessageButton.addEventListener('click' , (e)=>{
                         Swal.fire({
-                            title: 'ביטול הודעה',
-                            text: "האם אתה בטוח שתרצה לבטל את הודעה זו?",
+                            title: 'מחיקת הודעה',
+                            text: "האם אתה בטוח שתרצה למחוק הודעה זו?",
                             icon: 'warning',
                             showCancelButton: true,
+                            reverseButtons : true,
                             confirmButtonColor: '#3085d6',
                             cancelButtonColor: '#d33',
                             cancelButtonText : "בטל" ,
-                            confirmButtonText: 'כן, בטל',
+                            confirmButtonText: 'כן, מחק',
                             customClass: {
                                 confirmButton: 'custom-confirm-button-sa',
                                 cancelButton: 'custom-cancel-button-sa'
@@ -377,9 +368,8 @@ async function showScheduledMessages() {
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 item.deleted = true;
-                                console.log("in swal")
                                 console.log(item)
-                                utils.updateItem(item)
+                                Utils.updateItem(item)
                                 Swal.fire(
                                     'הודעה נמחקה',
                                     'ההודעה שתזמנת נמחקה',
@@ -449,10 +439,10 @@ function getChatDetails() {
     chatId = parts[1];
     if (chatId.includes("@g.us")) {
         media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
-        type = globals.GROUP_PARAM
+        type = Globals.GROUP_PARAM
     } else {
         media = chatId.split("@")[0]
-        type = globals.CONTACT_PARAM
+        type = Globals.CONTACT_PARAM
     }
     return {type, media, chatId}
 }
@@ -479,7 +469,7 @@ async function addSchedulerButton() {
         svgElement.style.marginTop = "10px"
         svgElement.style.marginLeft = "15px"
         const svgPathElement = clockIcon.childNodes[0].childNodes[0].childNodes[0].childNodes[0];
-        svgPathElement.setAttribute("d", globals.CLOCK_SVG_PATH_VALUE);
+        svgPathElement.setAttribute("d", Globals.CLOCK_SVG_PATH_VALUE);
         composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
         clockIcon.removeEventListener('click', () => {});
         clockIcon.addEventListener('click', () => {
@@ -490,7 +480,7 @@ async function addSchedulerButton() {
             dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
             hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
             minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
-            if (textInput.textContent != globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER){
+            if (textInput.textContent != Globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER){
                 messageSchedulerModal.value = textInput.textContent
             }
 
@@ -515,19 +505,28 @@ function handleSendButtonClick() {
     if (minute < 10) {minute = "0" + minute;}
     const dateTimeStr = date + " " + hour + ":" + minute;
     let scheduledTime = (new Date(dateTimeStr)).getTime();
-    if (scheduledTime <= Date.now()) {scheduledTime = new Date().getTime()}
     schedulerModal.style.display = "none";
     popupBackground.style.display = "none"
     messageSchedulerModal.value = "";
     if (!scheduleMessageWarning.show){
-        utils.getSchedulerMessages().then((schedulerMessages) => {
+        Utils.getSchedulerMessages().then((schedulerMessages) => {
             const id = schedulerMessages.length > 0 ? (schedulerMessages[schedulerMessages.length - 1].id) + 1 : 0;
+            if (scheduledTime <= Date.now()) {
+                scheduledTime = new Date().getTime()
+            }else {
+                let isScheduledTimeExist = schedulingTimeAlreadyExist(schedulerMessages)
+                while (!isScheduledTimeExist){
+                    console.log("try to scheudled the current +10 seconds")
+                    scheduledTime = scheduledTime + (Globals.SECOND * 10);
+                    isScheduledTimeExist = schedulingTimeAlreadyExist(schedulerMessages)
+                }
+            }
             saveMessage(id, message, scheduledTime, dateTimeStr).then((result) => {
-            }).catch(() => {
-                console.log("message not saved successfully")
+            }).catch((error) => {
+                console.log(error)
             })
         }).catch((onerror) => {
-            console.log("error in get scheduler messages")
+            console.log(onerror.message)
         })
     }else {
         Swal.fire({
@@ -541,8 +540,10 @@ function handleSendButtonClick() {
 
 
 const sendMessage = async (id) => {
-    const item = await utils.getScheduleMessageById(id)
-    if (item.type === globals.CONTACT_PARAM){
+    const item = await Utils.getScheduleMessageById(id)
+
+    // add client state check
+    if (item.type === Globals.CONTACT_PARAM){
         let element = document.createElement("a");
         element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
         element.id = "mychat";
@@ -566,14 +567,14 @@ const sendMessage = async (id) => {
                                     sendElement.click();
                                     p1.remove();
                                     item.messageSent = true;
-                                    utils.updateItem(item)
+                                    Utils.updateItem(item)
                                 })
                                 .catch(error => {
                                     console.log(error)
                                 });
 
                         } else {
-                            utils.simulateKeyPress('keydown', "Escape");
+                            Utils.simulateKeyPress('keydown', "Escape");
                             await sleep(1)
                             p1.click();
                         }
@@ -605,7 +606,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
             let chatTitleElement = {chatName, emojiAttr}
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src;
             const elapsedTime = scheduledTime - Date.now();
-            const notifyBeforeSending = elapsedTime > globals.USER_TYPING_WARNING_TIME * globals.SECOND
+            const notifyBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
             const data = {
                 id,
                 message,
@@ -621,28 +622,13 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 deleted : false
             };
             console.log(data);
-            const currentSchedulerMessages = await utils.getSchedulerMessages();
+            const currentSchedulerMessages = await Utils.getSchedulerMessages();
             const updatedSchedulerMessages = [...currentSchedulerMessages, data];
-            utils.updateSchedulerMessages(updatedSchedulerMessages).then(r => {
+            Utils.updateSchedulerMessages(updatedSchedulerMessages).then(r => {
                 console.log("updated scheduler messages")
                 console.log(r)
             });
             await setTimeOutForMessage(id,chatName,elapsedTime,notifyBeforeSending);
-            // if (notifyBeforeSending){
-            //     setTimeout(async () => {
-            //         let userIsTyping = await checkForUserTyping(globals.USER_TYPING_WARNING_TIME)
-            //         if (userIsTyping){
-            //             showUserTypingAlert(globals.USER_TYPING_WARNING_TIME * globals.SECOND , chatName)
-            //             await utils.sleep(globals.USER_TYPING_WARNING_TIME)
-            //         }
-            //         sendMessage(id).then(()=>{console.log("message has been send")})
-            //     } , elapsedTime - (globals.USER_TYPING_WARNING_TIME * globals.SECOND))
-            // }else {
-            //     setTimeout(()=>{
-            //         console.log("try to send message")
-            //         sendMessage(id)
-            //     } , elapsedTime)
-            // }
             resolve(true);
         } catch (error) {
             console.log(error)
@@ -662,11 +648,11 @@ async function checkForUserTyping(seconds) {
                 resolve(userIsTyping);
             }else {
                 getAllTexts().then(currentTexts => {
-                    let equals = utils.areArrayEqual(currentTexts.sort(), initialTexts);
+                    let equals = Utils.areArrayEqual(currentTexts.sort(), initialTexts);
                     if (!equals) {userIsTyping = true;}
                 });
             }
-        }, globals.SECOND);
+        }, Globals.SECOND);
     });
 
     function getAllTexts() {
@@ -685,15 +671,15 @@ async function checkForUserTyping(seconds) {
 function setTimeOutForMessage(id , chatName , elapsedTime , notifyBeforeSending) {
         if (notifyBeforeSending){
             setTimeout(async () => {
-                let userIsTyping = await checkForUserTyping(globals.USER_TYPING_WARNING_TIME)
+                let userIsTyping = await checkForUserTyping(Globals.USER_TYPING_WARNING_TIME)
                 if (userIsTyping){
-                    showUserTypingAlert(globals.USER_TYPING_WARNING_TIME * globals.SECOND , chatName)
-                    await utils.sleep(globals.USER_TYPING_WARNING_TIME)
+                    showUserTypingAlert(Globals.USER_TYPING_WARNING_TIME * Globals.SECOND , chatName)
+                    await Utils.sleep(Globals.USER_TYPING_WARNING_TIME)
                 }
                 sendMessage(id).then(()=>{
                     console.log("message has been sent")
                 })
-            } , elapsedTime - (globals.USER_TYPING_WARNING_TIME * globals.SECOND))
+            } , elapsedTime - (Globals.USER_TYPING_WARNING_TIME * Globals.SECOND))
         }else {
             setTimeout(()=>{
                 console.log("try to send message")

@@ -10,4 +10,6 @@ export const EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM = "יצא משתתפי כ
 export const FEEDBOT_LIST_OPTIONS = [SCHEDULED_MESSAGES_PARAM, EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM]
 export const GROUP_PARAM = "group";
 export const CONTACT_PARAM = "contact"
+export const SENDING_STATE = "sending";
+export const UNUSED_STATE = "unused"
 

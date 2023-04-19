@@ -74,7 +74,7 @@
 
 .feedBot-list li {
     padding: 0.5em;
-    width: 15em;
+    width: auto;
     font-weight: 600;
     color: #3b4a54;
     letter-spacing: 0.2px;
