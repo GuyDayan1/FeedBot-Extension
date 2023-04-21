@@ -8,8 +8,20 @@ export const SECOND = 1000;
 export const SCHEDULED_MESSAGES_PARAM = "הודעות מתוזמנות";
 export const EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM = "יצא משתתפי כל הקבוצות לאקסל";
 export const FEEDBOT_LIST_OPTIONS = [SCHEDULED_MESSAGES_PARAM, EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM]
+export const MESSAGE_MISSING_TEXT = "ההודעה חייבת להכיל טקסט"
 export const GROUP_PARAM = "group";
 export const CONTACT_PARAM = "contact"
 export const SENDING_STATE = "sending";
-export const UNUSED_STATE = "unused"
+export const UNUSED_STATE = "un-used"
+export const BLOCK_SENDING = "block-sending";
+export const SINGLE_GROUP_SENDING = "single-group-sending";
+export const SINGLE_CONTACT_SENDING = "single-contact-sending";
+
+export const NEW_MESSAGE = "new-message";
+export const EDIT_MESSAGE = "edit-message"
+
+
+//elements
+export const schedulerModalElement = "div[id=schedulerModal]";
+
 

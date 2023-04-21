@@ -1,0 +1,16 @@
+:root {
+    /*buttons colors*/
+    --cancel-button-color : #d9534f;
+    --cancel-button-hover-color: #c9302c;
+    --edit-button-color : #1976D2;
+    --edit-button-hover-color : #3086db;
+    --send-button-color : #7066e0;
+    --send-button-hover-color : #7f66ff;
+
+    /*background color */
+    --primary-border-color: #0077ff;
+
+    /*// modal colors // */
+    --modal-backdrop : rgba(255, 255, 255, 0.75);
+    --modal-box-shadow : 0 2px 5px rgba(31,30,47,.7);
+}
