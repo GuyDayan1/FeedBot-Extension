@@ -1,6 +1,9 @@
 @import url('variables.css');
 
 
+.swal2-icon {
+    font-size: 10px !important;
+}
 
 .feedBot-icon {
     background-repeat: no-repeat;

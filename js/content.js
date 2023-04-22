@@ -3,7 +3,6 @@ import * as GeneralUtils from "./utils/generalutils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import Swal from "sweetalert2";
-import {NEW_MESSAGE} from "./utils/globals";
 import {updateItem} from "./utils/chromeutils";
 
 
@@ -28,6 +27,8 @@ let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
 let client = {state : Globals.UNUSED_STATE , sendingType:""};
+let activeMessagesTimeout = {};
+
 
 
 
@@ -46,23 +47,94 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
 const loadElements = async () => {
     await addFeedBotIcon();
     await addModalToDOM();
-    await setMessagesTimeOut();
+    await initMessagesTimeOut();
     await addSchedulerListToDOM();
     await checkForChatElementListener();
     load = true;
 };
 
-async function setMessagesTimeOut() {
+async function initMessagesTimeOut() {
+    if(Object.keys(activeMessagesTimeout.length ===0)){await clearAllItemsTimeOuts();}
     let schedulerMessages = await ChromeUtils.getSchedulerMessages();
-    schedulerMessages = schedulerMessages.filter(item=> (!item.messageSent && !item.deleted))
-    console.log("array after filter")
-    console.log(schedulerMessages)
-    for (let i =0 ; i < schedulerMessages.length ; i++){
-        let currentMessage = schedulerMessages[i];
+    const now = Date.now();
+    const relevantMessages = [];
+    const unSentMessages = [];
+    for (let i = 0; i < schedulerMessages.length; i++) {
+        const item = schedulerMessages[i];
+        if (!item.messageSent && !item.deleted) {
+            if (item.scheduledTime < now) {
+                unSentMessages.push(item);
+            } else {
+                relevantMessages.push(item);
+            }
+        }
+    }
+    for (let i =0 ; i < relevantMessages.length ; i++){
+        let currentMessage = relevantMessages[i];
         console.log("set time out to message number: " +currentMessage.id)
         const elapsedTime = currentMessage.scheduledTime - Date.now();
         await setTimeOutForMessage(currentMessage.id,currentMessage.chatTitleElement.chatName,elapsedTime,currentMessage.notifyBeforeSending);
     }
+    if (unSentMessages.length > 0){
+        showSentMessagesPopup(unSentMessages)
+    }
+}
+
+const showSentMessagesPopup = (unSentMessages) => {
+    const container = document.createElement("div");
+    container.className = "un-sent-container";
+    const headline = document.createElement("div");
+    headline.innerText = "ההודעות הבאות לא נשלחות האם את/ה מעוניינ/ת לשלוח את ההודעות?";
+    headline.style.fontWeight = "600";
+    headline.style.fontSize = "0.8em"
+    container.appendChild(headline);
+    unSentMessages.forEach((item,index)=> {
+        let divItem = document.createElement('div')
+        divItem.className = "un-sent-message";
+        divItem.innerText = `${index+1}.) ${item.chatTitleElement.chatName} (${item.message})`
+        divItem.style.width = "max-content"
+        divItem.style.marginTop = "8px"
+        container.appendChild(divItem)
+    })
+    Swal.fire({
+        title: 'הודעות מתוזמנות',
+        html: container,
+        icon: 'info',
+        reverseButtons: true,
+        showCancelButton: true,
+        confirmButtonText: 'כן,שלח',
+        cancelButtonText : 'ביטול'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            unSentMessages.forEach(item=>{
+                sendMessage(item.id).then()
+            })
+        }
+        if (result.isDismissed){
+            unSentMessages.forEach(item=>{
+                item.deleted = true;
+                ChromeUtils.updateItem(item).then(r => {})
+            })
+        }
+    });
+
+}
+async function clearAllItemsTimeOuts() {
+    for (let id in activeMessagesTimeout) {
+        clearTimeout(activeMessagesTimeout[id]);
+        console.log("cleared,  id: " + id +" timeoutId " + activeMessagesTimeout[id])
+    }
+    activeMessagesTimeout = {}
+    console.log("active messages timeouts:")
+    console.log(activeMessagesTimeout)
+}
+
+function clearTimeOutItem(id) {
+    clearTimeout(activeMessagesTimeout[id])
+    delete activeMessagesTimeout[id]
+    console.log("active messages timeouts:")
+    console.log(activeMessagesTimeout)
+
 }
 
 
@@ -108,7 +180,6 @@ function addFeedBotIcon() {
             if (Globals.CLIENT_LANGUAGE.includes(Globals.ENGLISH_IDENTIFIER_PARAM)){
                 Globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER = "Type a message"
             }
-
             //ChromeUtils.clearStorage()
         }
 
@@ -144,7 +215,7 @@ function addModalToDOM() {
         closeSchedulerModal.addEventListener('click', () => {clearSchedulerModal();})
         cancelSchedulerModalButton.addEventListener('click', () => {clearSchedulerModal()})
         sendButtonSchedulerModal.addEventListener("click", async () => {
-            await handleSendButtonClick({type:NEW_MESSAGE})
+            await handleSendButtonClick({type:Globals.NEW_MESSAGE})
         });
 
     })
@@ -340,11 +411,11 @@ async function showScheduledMessages() {
                     const currentFirstChild = iconPlaceElement.children[0];
                     iconPlaceElement.removeChild(currentFirstChild);
                     // add cancel button
-                    const cancelMessageButton = document.createElement('button')
-                    cancelMessageButton.textContent = "מחק"
-                    cancelMessageButton.className = "custom-cancel-button"
-                    cancelMessageButton.setAttribute("key", item.id)
-                    cancelMessageButton.addEventListener('click' , (e)=>{
+                    const deleteMessageButton = document.createElement('button')
+                    deleteMessageButton.textContent = "מחק"
+                    deleteMessageButton.className = "custom-cancel-button"
+                    deleteMessageButton.setAttribute("key", item.id)
+                    deleteMessageButton.addEventListener('click' , (e)=>{
                         Swal.fire({
                             title: 'מחיקת הודעה',
                             text: "האם אתה בטוח שתרצה למחוק הודעה זו?",
@@ -362,12 +433,13 @@ async function showScheduledMessages() {
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 item.deleted = true;
-                                console.log(item)
                                 ChromeUtils.updateItem(item)
-                                Swal.fire(
-                                    'הודעה נמחקה',
-                                    'ההודעה שתזמנת נמחקה',
-                                )
+                                clearTimeOutItem(item.id)
+                                showToastMessage('bottom-end',5*Globals.SECOND,true,"ההודעה נמחקה בהצלחה")
+                                // Swal.fire(
+                                //     'הודעה נמחקה',
+                                //     'ההודעה שתזמנת נמחקה',
+                                // )
                             }
                         })
                     })
@@ -387,7 +459,7 @@ async function showScheduledMessages() {
                         // }
                     })
                     //editMessageButton.setAttribute("key", item.id)
-                    iconPlaceElement.insertBefore(cancelMessageButton, iconPlaceElement.firstChild);
+                    iconPlaceElement.insertBefore(deleteMessageButton, iconPlaceElement.firstChild);
                     iconPlaceElement.insertBefore(editMessageButton, iconPlaceElement.firstChild);
                 }
                 //contact image
@@ -403,6 +475,8 @@ async function showScheduledMessages() {
     }
     schedulerMessagesDisplay = true;
 }
+
+
 
 
 function openSettings() {
@@ -510,7 +584,9 @@ function handleSendButtonClick(data) {
     if (!scheduleMessageWarning.show){
         if (data.type === Globals.NEW_MESSAGE){
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
-                const id = schedulerMessages.length > 0 ? (schedulerMessages[schedulerMessages.length - 1].id) + 1 : 0;
+                // const id = schedulerMessages.length > 0 ? (schedulerMessages[schedulerMessages.length - 1].id) + 1 : 0;
+                const id  = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
+                console.log("new message id is: " +id)
                 saveNewMessage(id, message, scheduledTime, dateTimeStr).then((result) => {
                 }).catch((error) => {
                     console.log(error)
@@ -525,10 +601,11 @@ function handleSendButtonClick(data) {
                 newItem.message = message;
                 newItem.scheduledTime = scheduledTime;
                 newItem.dateTimeStr = dateTimeStr;
-                updateItem(newItem).then(r => {
+                ChromeUtils.updateItem(newItem).then(r => {
                     console.log("item updated")
                     console.log(r)
-                    // clear all messages time out and define from scratch OR clear current timeout and define new
+                    // TODO : clear previous timeout and define new one
+                    // TODO : change text message
                 })
             })
         }
@@ -578,11 +655,11 @@ const sendMessage = async (id) => {
                                             item.messageSent = true;
                                             ChromeUtils.updateItem(item)
                                             client = {state: Globals.UNUSED_STATE , sendingType: ""}
-                                            resolve(true,id)
+                                            resolve(true)
                                         })
                                         .catch(error => {
                                             console.log(error)
-                                            reject(error)
+                                            reject(false)
                                         });
 
                                 } else {
@@ -639,7 +716,6 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
             const currentSchedulerMessages = await ChromeUtils.getSchedulerMessages();
             const updatedSchedulerMessages = [...currentSchedulerMessages, data];
             ChromeUtils.updateSchedulerMessages(updatedSchedulerMessages).then(r => {
-                console.log("updated scheduler messages")
                 console.log(r)
             });
             await setTimeOutForMessage(id,chatName,elapsedTime,notifyBeforeSending);
@@ -683,26 +759,29 @@ async function checkForUserTyping(seconds) {
 
 
 function setTimeOutForMessage(id , chatName , elapsedTime , notifyBeforeSending) {
-    // TODO: "define timeout by id and keep in array"
-    let currentTimeOut
         if (notifyBeforeSending){
-            setTimeout(async () => {
+            activeMessagesTimeout[id] = setTimeout(async () => {
                 let userIsTyping = await checkForUserTyping(Globals.USER_TYPING_WARNING_TIME)
                 if (userIsTyping){
                     showUserTypingAlert(Globals.USER_TYPING_WARNING_TIME * Globals.SECOND , chatName)
                     await GeneralUtils.sleep(Globals.USER_TYPING_WARNING_TIME)
                 }
-                sendMessage(id).then(()=>{
-                    console.log("message has been sent");
-                })
+                startMessageSending(id)
             } , elapsedTime - (Globals.USER_TYPING_WARNING_TIME * Globals.SECOND))
         }else {
-            setTimeout(()=>{
-                sendMessage(id).then(()=>{
-                    console.log("message has been sent");
-                })
+            activeMessagesTimeout[id] = setTimeout(()=>{
+                startMessageSending(id)
             } , elapsedTime)
         }
+
+}
+
+function startMessageSending(id) {
+    sendMessage(id).then((result)=>{
+        console.log("send message function done , result: " +result );
+        delete activeMessagesTimeout[id]
+        console.log(activeMessagesTimeout)
+    })
 }
 
 
