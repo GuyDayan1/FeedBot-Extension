@@ -54,30 +54,32 @@ const loadElements = async () => {
 };
 
 async function initMessagesTimeOut() {
-    if(Object.keys(activeMessagesTimeout.length ===0)){await clearAllItemsTimeOuts();}
-    let schedulerMessages = await ChromeUtils.getSchedulerMessages();
-    const now = Date.now();
-    const relevantMessages = [];
-    const unSentMessages = [];
-    for (let i = 0; i < schedulerMessages.length; i++) {
-        const item = schedulerMessages[i];
-        if (!item.messageSent && !item.deleted) {
-            if (item.scheduledTime < now) {
-                unSentMessages.push(item);
-            } else {
-                relevantMessages.push(item);
+    waitForNode(document.body , WhatsAppGlobals.paneSideElement).then(async () => {
+        if (Object.keys(activeMessagesTimeout.length === 0)) {await clearAllItemsTimeOuts();}
+        let schedulerMessages = await ChromeUtils.getSchedulerMessages();
+        const now = Date.now();
+        const relevantMessages = [];
+        const unSentMessages = [];
+        for (let i = 0; i < schedulerMessages.length; i++) {
+            const item = schedulerMessages[i];
+            if (!item.messageSent && !item.deleted) {
+                if (item.scheduledTime < now) {
+                    unSentMessages.push(item);
+                } else {
+                    relevantMessages.push(item);
+                }
             }
         }
-    }
-    for (let i =0 ; i < relevantMessages.length ; i++){
-        let currentMessage = relevantMessages[i];
-        console.log("set time out to message number: " +currentMessage.id)
-        const elapsedTime = currentMessage.scheduledTime - Date.now();
-        await setTimeOutForMessage(currentMessage.id,currentMessage.chatTitleElement.chatName,elapsedTime,currentMessage.notifyBeforeSending);
-    }
-    if (unSentMessages.length > 0){
-        showSentMessagesPopup(unSentMessages)
-    }
+        for (let i = 0; i < relevantMessages.length; i++) {
+            let currentMessage = relevantMessages[i];
+            console.log("set time out to message number: " + currentMessage.id)
+            const elapsedTime = currentMessage.scheduledTime - Date.now();
+            await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.notifyBeforeSending);
+        }
+        if (unSentMessages.length > 0) {
+            showSentMessagesPopup(unSentMessages)
+        }
+    })
 }
 
 const showSentMessagesPopup = (unSentMessages) => {
@@ -91,7 +93,7 @@ const showSentMessagesPopup = (unSentMessages) => {
     unSentMessages.forEach((item,index)=> {
         let divItem = document.createElement('div')
         divItem.className = "un-sent-message";
-        divItem.innerText = `${index+1}.) ${item.chatTitleElement.chatName} (${item.message})`
+        divItem.innerText = `${index+1}) ${item.chatTitleElement.chatName} (${item.message})`
         divItem.style.width = "max-content"
         divItem.style.marginTop = "8px"
         container.appendChild(divItem)
@@ -555,6 +557,7 @@ async function addSchedulerButton() {
         clockIcon.removeEventListener('click', () => {});
         clockIcon.addEventListener('click', () => {
             openSchedulerModal();
+            console.log("click on clock")
         });
     }
 
@@ -563,30 +566,25 @@ async function addSchedulerButton() {
 
 
 
-function handleSendButtonClick(data) {
-    let scheduleMessageWarning = {show : false , message : ""};
-    let message = document.getElementById("message").value.trim();
+async function handleSendButtonClick(data) {
+    let scheduleMessageWarning = {show: false, warningMessage: Globals.MESSAGE_MISSING_TEXT};
+    let message = messageSchedulerModal.value.trim();
     console.log(message)
-    const date = document.getElementById("datepicker").value;
-    const hour = document.getElementById("hour").value;
-    let minute = document.getElementById("minute").value;
-    if (message.length === 0){
-        scheduleMessageWarning.show = true;
-        scheduleMessageWarning.message = Globals.MESSAGE_MISSING_TEXT
-    }
+    const date = dateInputSchedulerModal.value;
+    const hour = hourSelectorSchedulerModal.value;
+    let minute = minuteSelectorSchedulerModal.value;
+    if (message.length === 0) {scheduleMessageWarning.show = true;}
     if (minute < 10) {minute = "0" + minute;}
     const dateTimeStr = date + " " + hour + ":" + minute;
     let scheduledTime = (new Date(dateTimeStr)).getTime();
-    if (scheduledTime <= Date.now()) {
-        scheduledTime = new Date().getTime()
-    }
-    clearSchedulerModal()
-    if (!scheduleMessageWarning.show){
-        if (data.type === Globals.NEW_MESSAGE){
+    if (scheduledTime <= Date.now()) {scheduledTime = new Date().getTime()}
+    await clearSchedulerModal();
+    if (!scheduleMessageWarning.show) {
+        if (data.type === Globals.NEW_MESSAGE) {
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
                 // const id = schedulerMessages.length > 0 ? (schedulerMessages[schedulerMessages.length - 1].id) + 1 : 0;
-                const id  = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
-                console.log("new message id is: " +id)
+                const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
+                console.log("new message id is: " + id)
                 saveNewMessage(id, message, scheduledTime, dateTimeStr).then((result) => {
                 }).catch((error) => {
                     console.log(error)
@@ -595,8 +593,8 @@ function handleSendButtonClick(data) {
                 console.log(onerror.message)
             })
         }
-        if (data.type === Globals.EDIT_MESSAGE){
-            ChromeUtils.getScheduleMessageById(data.itemId).then(result=>{
+        if (data.type === Globals.EDIT_MESSAGE) {
+            ChromeUtils.getScheduleMessageById(data.itemId).then(result => {
                 let newItem = result;
                 newItem.message = message;
                 newItem.scheduledTime = scheduledTime;
@@ -609,8 +607,8 @@ function handleSendButtonClick(data) {
                 })
             })
         }
-    }else {
-        showErrorMessage(scheduleMessageWarning.message)
+    } else {
+        showErrorMessage(scheduleMessageWarning.warningMessage)
     }
 
 }
