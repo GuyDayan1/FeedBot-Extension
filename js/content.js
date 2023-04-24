@@ -3,6 +3,7 @@ import * as GeneralUtils from "./utils/generalutils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import Swal from "sweetalert2";
+import * as XLSX from "xlsx";
 
 
 
@@ -177,15 +178,16 @@ function addFeedBotIcon() {
                 addFeedBotOptionList();
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
-            const element = document.getElementsByClassName("lhggkp7q ln8gz9je rx9719la")[0];
-            let propsValue;
-            const props = Object.keys(element).find((key) => key.startsWith("__reactProps"));
-            if (props) {
-                propsValue = element[props];
-                console.log(propsValue);
-            } else {
-                console.error("Props object not found");
-            }
+
+            // const element = document.getElementsByClassName("lhggkp7q ln8gz9je rx9719la")[0];
+            // let propsValue;
+            // const props = Object.keys(element).find((key) => key.startsWith("__reactProps"));
+            // if (props) {
+            //     propsValue = element[props];
+            //     console.log(propsValue);
+            // } else {
+            //     console.error("Props object not found");
+            // }
 
             //document.body.appendChild(chatItem)
 
@@ -328,8 +330,9 @@ async function getAllGroupsParticipant() {
         phones = uniqueParticipants.map(chatId=> {
           return chatId.split('@')[0]
         })
-        console.log(phones)
 
+        const phonesObjects = phones.map(phone => ({ phone })); // must convert to object like phone:"972546432705"
+        exportToExcel(phonesObjects,"טלפונים מכל הקבוצות")
     })
     // const IDBRequest1 = await getObjectStoresByKeyFromDB(modelStorageDB , 'group-metadata').then((response)=>{
     //     console.log(response)
@@ -364,6 +367,23 @@ function getObjectStoresByKeyFromDB(db , key) {
   }))
 }
 
+function exportToExcel(data, sheetName = "Sheet1") {
+    // data = [{phone:"972546432705", name:"guy"}, {phone:"972555555", name:"moshe"];
+    const worksheet = XLSX.utils.json_to_sheet(data); //This converts the array of phone objects to a worksheet object using the json_to_sheet method from the XLSX library.
+    const headers = Object.keys(data[0]);   // ['phone','name']
+    const headerRow = headers.map(header => [header]);  // [['phone'] , ['name']]
+    XLSX.utils.sheet_add_aoa(worksheet, headerRow, { origin: "A1" });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" }); /// This converts the workbook object to an Excel file buffer using the write method from the XLSX library.
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); // This creates a new blob object from the Excel file buffer
+    const link = document.createElement("a");
+    link.href = window.URL.createObjectURL(blob);
+    link.download = `${sheetName}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
 
 
 async function showScheduledMessages() {
