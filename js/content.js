@@ -3,11 +3,12 @@ import * as GeneralUtils from "./utils/generalutils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import Swal from "sweetalert2";
-import {updateItem} from "./utils/chromeutils";
+
 
 
 let headerElement;
 let cellFrameElement;
+let chatItem;
 let connected = false;
 let schedulerMessagesDisplay = false;
 let completeStatusCounter = 0;
@@ -40,6 +41,7 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
             loadElements().then(() => console.log("Finish to load elements!"))
         }
     }
+
 });
 
 
@@ -175,6 +177,19 @@ function addFeedBotIcon() {
                 addFeedBotOptionList();
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
+            const element = document.getElementsByClassName("lhggkp7q ln8gz9je rx9719la")[0];
+            let propsValue;
+            const props = Object.keys(element).find((key) => key.startsWith("__reactProps"));
+            if (props) {
+                propsValue = element[props];
+                console.log(propsValue);
+            } else {
+                console.error("Props object not found");
+            }
+
+            //document.body.appendChild(chatItem)
+
+
             Globals.CLIENT_LANGUAGE = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
             if (Globals.CLIENT_LANGUAGE.includes(Globals.HEBREW_IDENTIFIER_PARAM)){
                 Globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER = "הקלדת ההודעה"
@@ -294,6 +309,10 @@ function addFeedBotOptionList() {
     feedBotPopup.appendChild(feedBotList);
 }
 
+const enterGroupChatByName = async (groupName) => {
+
+
+}
 
 async function getAllGroupsParticipant() {
     let phones;
@@ -900,3 +919,31 @@ const showToastMessage =(position,timer,timerProgressBar,title)=>{
         title: title
     })
 }
+
+
+
+/// scrolling chat list
+// let foundElement = false;
+// let listItems
+// const scrollerContainer = document.getElementById('pane-side');
+// //scroll the top of the pane side
+// const chatListElement = scrollerContainer.querySelector('div[data-testid="chat-list"]');
+// const chatListContainer = chatListElement.childNodes[0];
+// while (!foundElement) {
+//     listItems = chatListContainer.childNodes;
+//     const scrollValue = scrollerContainer.offsetHeight;
+//     listItems.forEach((item) => {
+//         const chatTile = item.querySelector('div[data-testid="cell-frame-title"]').firstElementChild.firstElementChild;
+//         const chatName = chatTile.getAttribute('title');
+//         console.log(chatName)
+//         if (chatName === groupName) {
+//             item.scrollIntoView();
+//             foundElement = true;
+//         }
+//     });
+//     console.log("finish to read list")
+//     if (!foundElement){
+//         scrollerContainer.scrollTop += scrollValue;
+//         await GeneralUtils.sleep(1)
+//     }
+// }
