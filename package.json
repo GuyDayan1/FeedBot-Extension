@@ -4,8 +4,8 @@
     "webpack-cli": "^5.0.1"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "sweetalert2": "^11.4.8",
+    "@sweetalert2/theme-wordpress-admin": "^5.0.15",
+    "sweetalert2": "^11.7.3",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.19.2/xlsx-0.19.2.tgz"
   },
   "scripts": {

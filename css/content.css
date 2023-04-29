@@ -5,6 +5,7 @@
     font-size: 10px !important;
 }
 
+
 .feedBot-icon {
     background-repeat: no-repeat;
     background-size: contain;
@@ -37,7 +38,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 50%;
+    margin-top: 30%;
 }
 
 .back-to-chat-list{
@@ -70,26 +71,58 @@
 
 
 
-.feedBot-list {
+.fb-features-dropdown {
+    display: none;
     list-style: none;
     padding: 0;
+    position: absolute;
+    margin-left: 3rem;
+    border-radius: 3px;
+    min-width: 160px;
+    z-index: 1000000;
+    margin-top: 27px;
+    background-color: #ffffff;
+    box-shadow :0 2px 5px 0 rgb(46 45 45), 0 2px 10px 0 rgb(177 167 169);
+    color: lightslategray;
 }
 
 
+.excel-features-dropdown {
+    display: none; /* hide the sublist by default */
+    position: absolute;
+    margin-top: -3px;
+    top: 0;
+    right: 100%;
+    width: max-content;
+    transition: all 1s ease-out;
+    transition-delay: 2s;
+    border-radius: 3px;
+    min-width: 160px;
+    background-color: #ffffff;
+    box-shadow: 0 2px 5px 0 rgb(46 45 45), 0 2px 10px 0 rgb(177 167 169);
+    color: lightslategray;
+}
 
-.feedBot-list li {
+.fb-list-item{
     padding: 0.5em;
     width: auto;
     font-weight: 600;
-    color: #3b4a54;
+    color: var(--list-text-color);
     letter-spacing: 0.2px;
     margin: 0.2em;
     background-color: white;
     cursor: pointer;
 }
 
-.feedBot-list li:hover {
-    background-color: #ebeced;
+.fb-list-item:hover {
+    background-color: var(--list-background-hover-color);
+}
+
+li:hover > .excel-features-dropdown  , .excel-features-dropdown:hover {
+    display: block; /* show the sublist when hovering over the list item */
+}
+li{
+    position: relative;
 }
 
 .messages-list .custom-cancel-button{

@@ -4,9 +4,6 @@ const path = require('path');
 
 module.exports = {
     entry: './js/content.js', // Specify the entry point of your content script
-    externals: {
-        puppeteer: 'require("puppeteer")'
-    },
     output: {
         filename: 'bundle.js', // Specify the output file name
         path: path.resolve(__dirname, 'dist'), // Specify the output file path

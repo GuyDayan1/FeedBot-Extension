@@ -14,7 +14,7 @@ let connected = false;
 let schedulerMessagesDisplay = false;
 let completeStatusCounter = 0;
 let currentChatDetails = {type:"", media:"" , chatId: ""}
-let feedBotPopup
+let feedBotIcon;
 let load = false;
 let addedDateSelectedOptions = false
 let closeSchedulerModal;
@@ -29,7 +29,9 @@ let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
 let client = {state : Globals.UNUSED_STATE , sendingType:""};
+let clientDetails = {language: "" , chatInputPlaceholder:""}
 let activeMessagesTimeout = {};
+let whatsAppSvgElement;
 
 
 
@@ -154,50 +156,21 @@ function addFeedBotIcon() {
             const firstChild = childNodes[0].firstChild;
             const feedBotDivExists = document.getElementsByClassName("feedBot-icon")[0]
             if (!feedBotDivExists) {
-                const feedBotIcon = document.createElement("div");
+                feedBotIcon = document.createElement("div");
                 feedBotIcon.style.backgroundImage = `url(${chrome.runtime.getURL("images/feedBot-icon.png")})`;
                 feedBotIcon.className = "feedBot-icon";
                 feedBotIcon.title = "FeedBot";
                 childNodes[0].insertBefore(feedBotIcon, firstChild);
-                feedBotPopup = document.createElement("div");
-                feedBotPopup.className = "feedBot-popup";
-                feedBotIcon.appendChild(feedBotPopup);
-                feedBotIcon.addEventListener("click", () => {
-                    let currentDisplayState = feedBotPopup.style.display
-                    if (currentDisplayState == "block") {
-                        feedBotPopup.style.display = "none"
-                    } else {
-                        feedBotPopup.style.display = "block"
-                    }
-                });
-                window.addEventListener("click", (event) => {
-                    if (!feedBotPopup.contains(event.target) && !feedBotIcon.contains(event.target)) {
-                        feedBotPopup.style.display = "none"
-                    }
-                });
                 addFeedBotOptionList();
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
 
-            // const element = document.getElementsByClassName("lhggkp7q ln8gz9je rx9719la")[0];
-            // let propsValue;
-            // const props = Object.keys(element).find((key) => key.startsWith("__reactProps"));
-            // if (props) {
-            //     propsValue = element[props];
-            //     console.log(propsValue);
-            // } else {
-            //     console.error("Props object not found");
-            // }
-
-            //document.body.appendChild(chatItem)
-
-
-            Globals.CLIENT_LANGUAGE = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
-            if (Globals.CLIENT_LANGUAGE.includes(Globals.HEBREW_IDENTIFIER_PARAM)){
-                Globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER = "הקלדת ההודעה"
+           clientDetails.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
+            if (clientDetails.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
+                clientDetails.chatInputPlaceholder = "הקלדת ההודעה"
             }
-            if (Globals.CLIENT_LANGUAGE.includes(Globals.ENGLISH_IDENTIFIER_PARAM)){
-                Globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER = "Type a message"
+            if (clientDetails.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)){
+                clientDetails.chatInputPlaceholder = "Type a message"
             }
             //ChromeUtils.clearStorage()
         }
@@ -288,35 +261,94 @@ function addSchedulerListToDOM() {
 
 }
 
+async function getSvgWhatsAppElement() {
+    whatsAppSvgElement = document.querySelector(WhatsAppGlobals.menuElement)
+    whatsAppSvgElement.removeEventListener('click' , ()=>{})
+}
 
-function addFeedBotOptionList() {
-    const feedBotList = document.createElement("ul");
-    feedBotList.className = "feedBot-list";
+async function addFeedBotOptionList() {
+    await getSvgWhatsAppElement();
+    const feedBotListFeatures = document.createElement("ul");
+    feedBotListFeatures.className = "fb-features-dropdown";
     for (let i = 0; i < Globals.FEEDBOT_LIST_OPTIONS.length; i++) {
-        const listItem = document.createElement("li");
-        listItem.textContent = Globals.FEEDBOT_LIST_OPTIONS[i];
-        feedBotList.appendChild(listItem);
+        const feedBotListItem = document.createElement("li");
+        feedBotListItem.className = "fb-list-item"
+        const textSpan = document.createElement("span");
+        textSpan.textContent = Globals.FEEDBOT_LIST_OPTIONS[i];
+        feedBotListItem.appendChild(textSpan)
+        feedBotListFeatures.appendChild(feedBotListItem);
         switch (Globals.FEEDBOT_LIST_OPTIONS[i]) {
             case Globals.SCHEDULED_MESSAGES_PARAM:
-                listItem.addEventListener("click", showScheduledMessages)
+                feedBotListItem.addEventListener("click", showScheduledMessages)
                 break;
-            case "הגדרות":
-                listItem.addEventListener("click", openSettings);
-                break;
-            case Globals.EXTRACT_GROUP_PARTICIPANTS_TO_EXCEL_PARAM:
-                listItem.addEventListener("click" , getAllGroupsParticipant)
+            case Globals.EXPORT_TO_EXCEL_PARAM:
+                const excelSubListFeatures = document.createElement("ul");
+                excelSubListFeatures.className = "excel-features-dropdown";
+                const arrowSvgData = {
+                    data_testid: "arrow",
+                    data_icon: "arrow",
+                    height: 20,
+                    width: 20,
+                    d: Globals.LEFT_ARROW_SVG_PATH_VALUE
+                }
+                const arrowElement = createSvgElement(arrowSvgData);
+                arrowElement.style.marginRight = "auto"
+                feedBotListItem.childNodes[0].style.display = "flex"
+                feedBotListItem.childNodes[0].appendChild(arrowElement)
+                feedBotListItem.appendChild(excelSubListFeatures)
+                for (let i = 0; i < Globals.EXCEL_FEATURES_LIST_OPTIONS.length; i++) {
+                    const excelListItem = document.createElement("li");
+                    excelListItem.className = "fb-list-item";
+                    const textSpan = document.createElement("span");
+                    textSpan.textContent = Globals.EXCEL_FEATURES_LIST_OPTIONS[i];
+                    excelListItem.appendChild(textSpan)
+                    excelSubListFeatures.appendChild(excelListItem);
+                    switch (Globals.EXCEL_FEATURES_LIST_OPTIONS[i]) {
+                        case Globals.ALL_GROUP_PARTICIPANTS_PARAM:
+                            excelListItem.addEventListener("click", getAllGroupsParticipants)
+                            break;
+                        case Globals.SELECTED_GROUPS_PARTICIPANTS_PARAM:
+                            excelListItem.addEventListener("click", getSelectedGroupsParticipants)
+                            break;
+                    }
+                }
                 break;
         }
     }
-    feedBotPopup.appendChild(feedBotList);
+    feedBotIcon.appendChild(feedBotListFeatures);
+    feedBotIcon.addEventListener("click", () => {
+        if (feedBotListFeatures.style.display === "block") {
+            feedBotListFeatures.style.display = "none"
+        } else {
+            feedBotListFeatures.style.display = "block"
+        }
+    });
+    window.addEventListener("click", (event) => {
+        if (!feedBotIcon.contains(event.target)) {
+            feedBotListFeatures.style.display = "none"
+        }
+    });
 }
 
+
+function createSvgElement(data) {
+    let element = whatsAppSvgElement.cloneNode(true)
+    element.setAttribute('data-testid', data.data_testid);
+    element.setAttribute('data-icon', data.data_icon);
+    element.childNodes[0].setAttribute('height' , data.height)
+    element.childNodes[0].setAttribute('width' , data.width)
+    element.childNodes[0].childNodes[0].setAttribute('d' , data.d)
+    return element;
+}
 const enterGroupChatByName = async (groupName) => {
 
 
 }
 
-async function getAllGroupsParticipant() {
+async function getSelectedGroupsParticipants(){
+    console.log("Get From Specific Group")
+}
+async function getAllGroupsParticipants() {
     let phones;
     const modelStorageDB = await getDB("model-storage")
     const IDBRequest = await getObjectStoresByKeyFromDB(modelStorageDB , 'participant').then((response)=>{

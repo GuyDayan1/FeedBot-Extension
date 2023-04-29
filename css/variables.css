@@ -13,4 +13,9 @@
     /*// modal colors // */
     --modal-backdrop : rgba(255, 255, 255, 0.75);
     --modal-box-shadow : 0 2px 5px rgba(31,30,47,.7);
+
+    /*list*/
+    --list-text-color : #3b4a54;
+    --list-background-hover-color : #ebeced
+
 }
