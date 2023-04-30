@@ -28,8 +28,7 @@ let schedulerModal;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
-let client = {state : Globals.UNUSED_STATE , sendingType:""};
-let clientDetails = {language: "" , chatInputPlaceholder:""}
+let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: "" , chatInputPlaceholder: ""};
 let activeMessagesTimeout = {};
 let whatsAppSvgElement;
 
@@ -165,12 +164,12 @@ function addFeedBotIcon() {
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
 
-           clientDetails.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
-            if (clientDetails.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
-                clientDetails.chatInputPlaceholder = "הקלדת ההודעה"
+           client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
+            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
+                client.chatInputPlaceholder = "הקלדת ההודעה"
             }
-            if (clientDetails.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)){
-                clientDetails.chatInputPlaceholder = "Type a message"
+            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)){
+                client.chatInputPlaceholder = "Type a message"
             }
             //ChromeUtils.clearStorage()
         }
@@ -915,7 +914,7 @@ function openSchedulerModal() {
     hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
     minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
     let textInput  = document.querySelectorAll('[class*="text-input"]')[1];
-    if (textInput.textContent !== Globals.DEFAULT_WHATSAPP_CHAT_PLACEHOLDER){
+    if (textInput.textContent !== client.chatInputPlaceholder){
         messageSchedulerModal.value = textInput.textContent
     }
 }
