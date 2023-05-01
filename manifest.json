@@ -22,7 +22,7 @@
 
   "web_accessible_resources": [
     {
-      "resources": ["images/*" ,"html/*" , "css/modal.css" , "css/variables.css"],
+      "resources": ["images/*" ,"html/*" , "css/modal.css" , "css/variables.css" , "languages/*"],
       "matches": ["https://web.whatsapp.com/*"]
     }
   ],

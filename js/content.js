@@ -31,6 +31,7 @@ let clockIcon;
 let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: ""};
 let chatInputPlaceholder = '';
 let activeMessagesTimeout = {};
+let translation = {}
 let whatsAppSvgElement;
 
 
@@ -41,7 +42,11 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
     if (message === "complete") {
         completeStatusCounter++;
         if ((completeStatusCounter > 1) && (!load)) {
-            loadExtension().then(() => console.log("Finish to load extension"))
+            initTranslations().then(()=>{
+                console.log("Finish to load translations")
+                console.log(translation)
+                loadExtension().then(() => console.log("Finish to load extension"))
+            })
         }
     }
 
@@ -56,6 +61,16 @@ const loadExtension = async () => {
     await chatListener();
     load = true;
 };
+
+
+async function initTranslations() {
+    client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','').split("_")[0] || Globals.HEBREW_LANGUAGE_PARAM;
+    let languagePath = `languages/${client.language}.json`;
+    let htmlUrl = chrome.runtime.getURL(languagePath);
+    const response = await fetch(htmlUrl);
+    translation = await response.json();
+}
+
 function addFeedBotIcon() {
     const headerElementObserver = new MutationObserver(async () => {
         headerElement = document.querySelector(WhatsAppGlobals.chatListHeaderElement);
@@ -90,7 +105,6 @@ function addFeedBotIcon() {
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
 
-            client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
             if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
                 chatInputPlaceholder = "הקלדת ההודעה"
             }
@@ -229,7 +243,8 @@ function addSchedulerListToDOM() {
 
     const backToChatList = document.createElement('div')
     backToChatList.className = "back-to-chat-list";
-    backToChatList.innerText = "לחץ חזרה לצ'אטים"
+    backToChatList.innerText = translation.backToChat
+    // backToChatList.innerText = "לחץ חזרה לצ'אטים"
 
 
     const messagesList = document.createElement("div");
@@ -318,7 +333,6 @@ async function addFeedBotFeatures() {
     }
     feedBotIcon.appendChild(feedBotListFeatures);
     listFadeIn(feedBotListFeatures,300)
-
 }
 
 
