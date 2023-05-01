@@ -2,14 +2,14 @@ import * as ChromeUtils from "./utils/chromeutils";
 import * as GeneralUtils from "./utils/generalutils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
-import Swal from "sweetalert2";
-import * as XLSX from "xlsx";
+import * as ExcelUtils from './utils/excelutils'
+import * as SwalUtils from './utils/swalutils'
+import {listFadeIn} from "./utils/generalutils";
 
 
 
 let headerElement;
 let cellFrameElement;
-let chatItem;
 let connected = false;
 let schedulerMessagesDisplay = false;
 let completeStatusCounter = 0;
@@ -28,7 +28,8 @@ let schedulerModal;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
-let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: "" , chatInputPlaceholder: ""};
+let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: ""};
+let chatInputPlaceholder = '';
 let activeMessagesTimeout = {};
 let whatsAppSvgElement;
 
@@ -40,116 +41,28 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
     if (message === "complete") {
         completeStatusCounter++;
         if ((completeStatusCounter > 1) && (!load)) {
-            loadElements().then(() => console.log("Finish to load elements!"))
+            loadExtension().then(() => console.log("Finish to load extension"))
         }
     }
 
 });
 
 
-
-const loadElements = async () => {
+const loadExtension = async () => {
     await addFeedBotIcon();
     await addModalToDOM();
     await initMessagesTimeOut();
     await addSchedulerListToDOM();
-    await checkForChatElementListener();
+    await chatListener();
     load = true;
 };
-
-async function initMessagesTimeOut() {
-    waitForNode(document.body , WhatsAppGlobals.paneSideElement).then(async () => {
-        if (Object.keys(activeMessagesTimeout.length === 0)) {await clearAllItemsTimeOuts();}
-        let schedulerMessages = await ChromeUtils.getSchedulerMessages();
-        const now = Date.now();
-        const relevantMessages = [];
-        const unSentMessages = [];
-        for (let i = 0; i < schedulerMessages.length; i++) {
-            const item = schedulerMessages[i];
-            if (!item.messageSent && !item.deleted) {
-                if (item.scheduledTime < now) {
-                    unSentMessages.push(item);
-                } else {
-                    relevantMessages.push(item);
-                }
-            }
-        }
-        for (let i = 0; i < relevantMessages.length; i++) {
-            let currentMessage = relevantMessages[i];
-            console.log("set time out to message number: " + currentMessage.id)
-            const elapsedTime = currentMessage.scheduledTime - Date.now();
-            await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.notifyBeforeSending);
-        }
-        if (unSentMessages.length > 0) {
-            showSentMessagesPopup(unSentMessages)
-        }
-    })
-}
-
-const showSentMessagesPopup = (unSentMessages) => {
-    const container = document.createElement("div");
-    container.className = "un-sent-container";
-    const headline = document.createElement("div");
-    headline.innerText = "ההודעות הבאות לא נשלחות האם את/ה מעוניינ/ת לשלוח את ההודעות?";
-    headline.style.fontWeight = "600";
-    headline.style.fontSize = "0.8em"
-    container.appendChild(headline);
-    unSentMessages.forEach((item,index)=> {
-        let divItem = document.createElement('div')
-        divItem.className = "un-sent-message";
-        divItem.innerText = `${index+1}) ${item.chatTitleElement.chatName} (${item.message})`
-        divItem.style.width = "max-content"
-        divItem.style.marginTop = "8px"
-        container.appendChild(divItem)
-    })
-    Swal.fire({
-        title: 'הודעות מתוזמנות',
-        html: container,
-        icon: 'info',
-        reverseButtons: true,
-        showCancelButton: true,
-        confirmButtonText: 'כן,שלח',
-        cancelButtonText : 'ביטול'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            unSentMessages.forEach(item=>{
-                sendMessage(item.id).then()
-            })
-        }
-        if (result.isDismissed){
-            unSentMessages.forEach(item=>{
-                item.deleted = true;
-                ChromeUtils.updateItem(item).then(r => {})
-            })
-        }
-    });
-
-}
-async function clearAllItemsTimeOuts() {
-    for (let id in activeMessagesTimeout) {
-        clearTimeout(activeMessagesTimeout[id]);
-        console.log("cleared,  id: " + id +" timeoutId " + activeMessagesTimeout[id])
-    }
-    activeMessagesTimeout = {}
-    console.log("active messages timeouts:")
-    console.log(activeMessagesTimeout)
-}
-
-function clearTimeOutItem(id) {
-    clearTimeout(activeMessagesTimeout[id])
-    delete activeMessagesTimeout[id]
-    console.log("active messages timeouts:")
-    console.log(activeMessagesTimeout)
-
-}
-
-
 function addFeedBotIcon() {
     const headerElementObserver = new MutationObserver(async () => {
         headerElement = document.querySelector(WhatsAppGlobals.chatListHeaderElement);
         if (headerElement !== null) {
             connected = true;
             headerElementObserver.disconnect();
+            await getSvgWhatsAppElement();
             let secondDiv = headerElement.childNodes[1];
             let childNodes = secondDiv.childNodes;
             const firstChild = childNodes[0].firstChild;
@@ -160,16 +73,29 @@ function addFeedBotIcon() {
                 feedBotIcon.className = "feedBot-icon";
                 feedBotIcon.title = "FeedBot";
                 childNodes[0].insertBefore(feedBotIcon, firstChild);
-                addFeedBotOptionList();
+                feedBotIcon.addEventListener('click' , ()=>{
+                    const feedBotFeaturesList = document.getElementsByClassName("fb-features-dropdown")[0]
+                    if (!feedBotFeaturesList){
+                        addFeedBotFeatures()
+                    }else {
+                        removeFeedBotFeatures()
+                    }
+                })
+                window.addEventListener("click", (event) => {
+                    const feedBotFeaturesList = document.getElementsByClassName("fb-features-dropdown")[0]
+                    if ((!feedBotIcon.contains(event.target)) && (feedBotFeaturesList)) {
+                        removeFeedBotFeatures()
+                    }
+                });
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
 
-           client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
+            client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','');
             if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
-                client.chatInputPlaceholder = "הקלדת ההודעה"
+                chatInputPlaceholder = "הקלדת ההודעה"
             }
             if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)){
-                client.chatInputPlaceholder = "Type a message"
+                chatInputPlaceholder = "Type a message"
             }
             //ChromeUtils.clearStorage()
         }
@@ -177,6 +103,7 @@ function addFeedBotIcon() {
     });
     headerElementObserver.observe(document.body, {childList: true, subtree: true});
 }
+
 
 function addModalToDOM() {
     let modal = document.querySelector(Globals.schedulerModalElement)
@@ -216,6 +143,79 @@ function addModalToDOM() {
     modalBackdrop.className = "modal-backdrop";
     document.body.appendChild(modalBackdrop)
 }
+
+
+async function initMessagesTimeOut() {
+    waitForNode(document.body , WhatsAppGlobals.paneSideElement).then(async () => {
+        if (Object.keys(activeMessagesTimeout.length === 0)) {await clearAllItemsTimeOuts();}
+        let schedulerMessages = await ChromeUtils.getSchedulerMessages();
+        const now = Date.now();
+        const relevantMessages = [];
+        const unSentMessages = [];
+        for (let i = 0; i < schedulerMessages.length; i++) {
+            const item = schedulerMessages[i];
+            if (!item.messageSent && !item.deleted) {
+                if (item.scheduledTime < now) {
+                    unSentMessages.push(item);
+                } else {
+                    relevantMessages.push(item);
+                }
+            }
+        }
+        for (let i = 0; i < relevantMessages.length; i++) {
+            let currentMessage = relevantMessages[i];
+            console.log("set time out to message number: " + currentMessage.id)
+            const elapsedTime = currentMessage.scheduledTime - Date.now();
+            await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.notifyBeforeSending);
+        }
+        if (unSentMessages.length > 0) {
+            showSentMessagesPopup(unSentMessages)
+        }
+    })
+}
+
+
+function chatListener() {
+    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
+        document.body.addEventListener('click', () => {
+            waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, 3000).then(async (element) => {
+                currentChatDetails = GeneralUtils.getChatDetails();
+                waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, 3000)
+                    .then((element) => {
+                        const clockIcon = document.getElementById("clock-icon");
+                        if (!clockIcon){
+                            addSchedulerButton()
+                        }
+                    })
+                    .catch((error) => {
+                        console.log(error)
+                    });
+
+            })
+        })
+    })
+}
+
+
+async function clearAllItemsTimeOuts() {
+    for (let id in activeMessagesTimeout) {
+        clearTimeout(activeMessagesTimeout[id]);
+        console.log("cleared,  id: " + id +" timeoutId " + activeMessagesTimeout[id])
+    }
+    activeMessagesTimeout = {}
+    console.log("active messages timeouts:")
+    console.log(activeMessagesTimeout)
+}
+
+function clearTimeOutItem(id) {
+    clearTimeout(activeMessagesTimeout[id])
+    delete activeMessagesTimeout[id]
+    console.log("active messages timeouts:")
+    console.log(activeMessagesTimeout)
+
+}
+
+
 
 function clearSchedulerModal() {
     schedulerModal.style.display = "none";
@@ -264,9 +264,11 @@ async function getSvgWhatsAppElement() {
     whatsAppSvgElement = document.querySelector(WhatsAppGlobals.menuElement)
     whatsAppSvgElement.removeEventListener('click' , ()=>{})
 }
-
-async function addFeedBotOptionList() {
-    await getSvgWhatsAppElement();
+async function removeFeedBotFeatures(){
+    const feedBotListFeatures = document.getElementsByClassName("fb-features-dropdown")[0];
+    feedBotIcon.removeChild(feedBotListFeatures)
+}
+async function addFeedBotFeatures() {
     const feedBotListFeatures = document.createElement("ul");
     feedBotListFeatures.className = "fb-features-dropdown";
     for (let i = 0; i < Globals.FEEDBOT_LIST_OPTIONS.length; i++) {
@@ -282,7 +284,7 @@ async function addFeedBotOptionList() {
                 break;
             case Globals.EXPORT_TO_EXCEL_PARAM:
                 const excelSubListFeatures = document.createElement("ul");
-                excelSubListFeatures.className = "excel-features-dropdown";
+                excelSubListFeatures.className = "fb-excel-features-dropdown";
                 const arrowSvgData = {
                     data_testid: "arrow",
                     data_icon: "arrow",
@@ -315,32 +317,8 @@ async function addFeedBotOptionList() {
         }
     }
     feedBotIcon.appendChild(feedBotListFeatures);
-    feedBotIcon.addEventListener("click", () => {
-        if (feedBotListFeatures.style.display === "block") {
-            feedBotListFeatures.style.display = "none"
-        } else {
-            feedBotListFeatures.style.display = "block";
-            fadeIn(feedBotListFeatures,300)
-        }
-        function fadeIn(element, duration) {
-            let start = performance.now();
-            element.style.opacity = "0";
-            function update() {
-                let now = performance.now();
-                let time = Math.min(1, (now - start) / duration);
-                element.style.opacity = time;
-                if (time < 1) {
-                    requestAnimationFrame(update);
-                }
-            }
-            requestAnimationFrame(update);
-        }
-    });
-    window.addEventListener("click", (event) => {
-        if (!feedBotIcon.contains(event.target)) {
-            feedBotListFeatures.style.display = "none"
-        }
-    });
+    listFadeIn(feedBotListFeatures,300)
+
 }
 
 
@@ -359,12 +337,13 @@ const enterGroupChatByName = async (groupName) => {
 }
 
 async function getSelectedGroupsParticipants(){
-    console.log("Get From Specific Group")
+    const modelStorageDB = await GeneralUtils.getDB("model-storage")
+
 }
 async function getAllGroupsParticipants() {
     let phones;
-    const modelStorageDB = await getDB("model-storage")
-    const IDBRequest = await getObjectStoresByKeyFromDB(modelStorageDB , 'participant').then((response)=>{
+    const modelStorageDB = await GeneralUtils.getDB("model-storage")
+    const IDBRequest = await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB , 'participant').then((response)=>{
         const groupParticipants = response.result;
         const participants = groupParticipants.map(item => {
             if (item.participants.length > 0 || true){
@@ -377,7 +356,7 @@ async function getAllGroupsParticipants() {
         })
 
         const phonesObjects = phones.map(phone => ({ phone })); // must convert to object like phone:"972546432705"
-        exportToExcel(phonesObjects,"טלפונים מכל הקבוצות")
+        ExcelUtils.exportToExcel(phonesObjects,"טלפונים מכל הקבוצות")
     })
     // const IDBRequest1 = await getObjectStoresByKeyFromDB(modelStorageDB , 'group-metadata').then((response)=>{
     //     console.log(response)
@@ -387,48 +366,9 @@ async function getAllGroupsParticipants() {
     // })
 }
 
-function getDB(dbName) {
-    return new Promise((resolve => {
-        let db;
-        const request = indexedDB.open(dbName);
-        request.onerror = (event) => {
-            console.error("Why didn't you allow my web app to use IndexedDB?!");
-        };
-        request.onsuccess = (event) => {
-            db = event.target.result;
-            resolve(db)
-        };
-    }))
-}
 
-function getObjectStoresByKeyFromDB(db , key) {
-    return new Promise(((resolve) => {
-        let transaction = db.transaction(key, 'readonly')
-        let objectStore = transaction.objectStore(key);
-        let getAllRequest = objectStore.getAll();
-        getAllRequest.onsuccess = ()=>{
-            resolve(getAllRequest)
-        }
-  }))
-}
 
-function exportToExcel(data, sheetName = "Sheet1") {
-    // data = [{phone:"972546432705", name:"guy"}, {phone:"972555555", name:"moshe"];
-    const worksheet = XLSX.utils.json_to_sheet(data); //This converts the array of phone objects to a worksheet object using the json_to_sheet method from the XLSX library.
-    const headers = Object.keys(data[0]);   // ['phone','name']
-    const headerRow = headers.map(header => [header]);  // [['phone'] , ['name']]
-    XLSX.utils.sheet_add_aoa(worksheet, headerRow, { origin: "A1" });
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" }); /// This converts the workbook object to an Excel file buffer using the write method from the XLSX library.
-    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }); // This creates a new blob object from the Excel file buffer
-    const link = document.createElement("a");
-    link.href = window.URL.createObjectURL(blob);
-    link.download = `${sheetName}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-}
+
 
 
 async function showScheduledMessages() {
@@ -521,12 +461,9 @@ async function showScheduledMessages() {
                                 item.deleted = true;
                                 ChromeUtils.updateItem(item)
                                 clearTimeOutItem(item.id)
-                                showToastMessage('bottom-end',5*Globals.SECOND,true,"ההודעה נמחקה בהצלחה")
-                                // Swal.fire(
-                                //     'הודעה נמחקה',
-                                //     'ההודעה שתזמנת נמחקה',
-                                // )
+                                SwalUtils.showToastMessage('bottom-end',5*Globals.SECOND,true,"ההודעה נמחקה בהצלחה")
                             }
+
                         })
                     })
                     const editMessageButton = document.createElement('button')
@@ -565,52 +502,7 @@ async function showScheduledMessages() {
 
 
 
-function openSettings() {
-    console.log("Opening settings");
-}
 
-
-function checkForChatElementListener() {
-    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
-        document.body.addEventListener('click', () => {
-            waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, 3000).then(async (element) => {
-                currentChatDetails = getChatDetails();
-                waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, 3000)
-                    .then((element) => {
-                        const clockIcon = document.getElementById("clock-icon");
-                        if (!clockIcon){
-                            addSchedulerButton()
-                        }
-                    })
-                    .catch((error) => {
-                        console.log(error)
-                    });
-
-            })
-        })
-    })
-}
-
-
-
-
-function getChatDetails() {
-    let type;
-    let media;
-    let chatId;
-    const element = document.querySelector("[data-testid*='conv-msg']");
-    const dataTestId = element.getAttribute("data-testid");
-    const parts = dataTestId.split("_");
-    chatId = parts[1];
-    if (chatId.includes("@g.us")) {
-        media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
-        type = Globals.GROUP_PARAM
-    } else {
-        media = chatId.split("@")[0]
-        type = Globals.CONTACT_PARAM
-    }
-    return {type, media, chatId}
-}
 
 async function addSchedulerButton() {
     const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement)
@@ -639,9 +531,10 @@ async function addSchedulerButton() {
         }
         composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
         clockIcon.removeEventListener('click', () => {});
-        clockIcon.addEventListener('click', () => {
-            openSchedulerModal();
-            console.log("click on clock")
+        clockIcon.addEventListener('click', (e) => {
+            e.preventDefault()
+                openSchedulerModal();
+                // need to fix open scheduler multiple times
         });
     }
 
@@ -720,7 +613,7 @@ const sendMessage = async (id) => {
                 let p1 = document.getElementById("mychat");
                 p1.click();
                 const waitForChatInterval = setInterval(()=> {
-                    const chatDetails = getChatDetails();
+                    const chatDetails = GeneralUtils.getChatDetails();
                     if (chatDetails.chatId === item.chatId){
                         clearInterval(waitForChatInterval)
                         const waitForTextInterval = setInterval(async () => {
@@ -928,7 +821,8 @@ function openSchedulerModal() {
     hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
     minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
     let textInput  = document.querySelectorAll('[class*="text-input"]')[1];
-    if (textInput.textContent !== client.chatInputPlaceholder){
+    console.log(chatInputPlaceholder)
+    if (textInput.textContent !== chatInputPlaceholder){
         messageSchedulerModal.value = textInput.textContent
     }
 }
@@ -951,8 +845,7 @@ function showUserTypingAlert(timer,contactName) {
             clearInterval(timerInterval)
         }
     }).then((result) => {
-        if (result.isConfirmed){}
-        if (result.dismiss === Swal.DismissReason.timer) {
+        if (Swal.DismissReason.timer) {
             console.log('I was closed by the timer')
         }
     })
@@ -966,25 +859,48 @@ const showErrorMessage = (message) => {
     }).then()
 }
 
-const showToastMessage =(position,timer,timerProgressBar,title)=>{
-    const Toast = Swal.mixin({
-        toast: true,
-        position: position,
-        showConfirmButton: false,
-        timer: timer,
-        timerProgressBar: timerProgressBar,
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
+
+
+
+const showSentMessagesPopup = (unSentMessages) => {
+    const container = document.createElement("div");
+    container.className = "un-sent-container";
+    const headline = document.createElement("div");
+    headline.innerText = "ההודעות הבאות לא נשלחות האם את/ה מעוניינ/ת לשלוח את ההודעות?";
+    headline.style.fontWeight = "600";
+    headline.style.fontSize = "0.8em"
+    container.appendChild(headline);
+    unSentMessages.forEach((item,index)=> {
+        let divItem = document.createElement('div')
+        divItem.className = "un-sent-message";
+        divItem.innerText = `${index+1}) ${item.chatTitleElement.chatName} (${item.message})`
+        divItem.style.width = "max-content"
+        divItem.style.marginTop = "8px"
+        container.appendChild(divItem)
+    })
+    Swal.fire({
+        title: 'הודעות מתוזמנות',
+        html: container,
+        icon: 'info',
+        reverseButtons: true,
+        showCancelButton: true,
+        confirmButtonText: 'כן,שלח',
+        cancelButtonText : 'ביטול'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            unSentMessages.forEach(item=>{
+                sendMessage(item.id).then()
+            })
         }
-    })
+        if (result.isDismissed){
+            unSentMessages.forEach(item=>{
+                item.deleted = true;
+                ChromeUtils.updateItem(item).then(r => {})
+            })
+        }
+    });
 
-    Toast.fire({
-        icon: 'success',
-        title: title
-    })
 }
-
 
 
 /// scrolling chat list
