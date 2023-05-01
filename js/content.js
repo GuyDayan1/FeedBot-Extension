@@ -319,7 +319,21 @@ async function addFeedBotOptionList() {
         if (feedBotListFeatures.style.display === "block") {
             feedBotListFeatures.style.display = "none"
         } else {
-            feedBotListFeatures.style.display = "block"
+            feedBotListFeatures.style.display = "block";
+            fadeIn(feedBotListFeatures,300)
+        }
+        function fadeIn(element, duration) {
+            let start = performance.now();
+            element.style.opacity = "0";
+            function update() {
+                let now = performance.now();
+                let time = Math.min(1, (now - start) / duration);
+                element.style.opacity = time;
+                if (time < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            requestAnimationFrame(update);
         }
     });
     window.addEventListener("click", (event) => {
