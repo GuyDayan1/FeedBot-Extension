@@ -65,6 +65,18 @@ export function getObjectStoresByKeyFromDB(db , key) {
     }))
 }
 
+export function getObjectStoreByIndexFromDb(db , key , indexName , query){
+    return new Promise((async (resolve) => {
+        let transaction = db.transaction(key, 'readonly');
+        let objectStore = transaction.objectStore(key);
+        let index = objectStore.index(indexName.toString());
+        let getAllRequest = index.getAll(query);
+        getAllRequest.onsuccess = () => {
+            resolve(getAllRequest)
+        };
+    }))
+}
+
 export function getChatDetails() {
     let type;
     let media;

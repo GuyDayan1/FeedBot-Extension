@@ -4,7 +4,6 @@ import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from './utils/excelutils'
 import * as SwalUtils from './utils/swalutils'
-import {listFadeIn} from "./utils/generalutils";
 
 
 
@@ -28,11 +27,13 @@ let schedulerModal;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
-let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: ""};
+let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: "he"};
 let chatInputPlaceholder = '';
 let activeMessagesTimeout = {};
 let translation = {}
 let whatsAppSvgElement;
+let feedBotListOptions = [];
+let excelFeaturesListOptions = []
 
 
 
@@ -47,6 +48,7 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
                 console.log(translation)
                 loadExtension().then(() => console.log("Finish to load extension"))
             })
+            load = true;
         }
     }
 
@@ -59,7 +61,6 @@ const loadExtension = async () => {
     await initMessagesTimeOut();
     await addSchedulerListToDOM();
     await chatListener();
-    load = true;
 };
 
 
@@ -106,11 +107,14 @@ function addFeedBotIcon() {
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
 
             if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
-                chatInputPlaceholder = "הקלדת ההודעה"
+                chatInputPlaceholder = translation.typeMessage
             }
             if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)){
-                chatInputPlaceholder = "Type a message"
+                chatInputPlaceholder = translation.typeMessage
             }
+
+            feedBotListOptions.push(translation.scheduledMessages , translation.exportToExcel)
+            excelFeaturesListOptions.push(translation.allWhatsAppContacts , translation.participantsFromAllGroups , translation.participantsFromSelectedGroups)
             //ChromeUtils.clearStorage()
         }
 
@@ -244,7 +248,6 @@ function addSchedulerListToDOM() {
     const backToChatList = document.createElement('div')
     backToChatList.className = "back-to-chat-list";
     backToChatList.innerText = translation.backToChat
-    // backToChatList.innerText = "לחץ חזרה לצ'אטים"
 
 
     const messagesList = document.createElement("div");
@@ -284,20 +287,21 @@ async function removeFeedBotFeatures(){
     feedBotIcon.removeChild(feedBotListFeatures)
 }
 async function addFeedBotFeatures() {
+    console.log("Here")
     const feedBotListFeatures = document.createElement("ul");
     feedBotListFeatures.className = "fb-features-dropdown";
-    for (let i = 0; i < Globals.FEEDBOT_LIST_OPTIONS.length; i++) {
+    for (let i = 0; i < feedBotListOptions.length; i++) {
         const feedBotListItem = document.createElement("li");
         feedBotListItem.className = "fb-list-item"
         const textSpan = document.createElement("span");
-        textSpan.textContent = Globals.FEEDBOT_LIST_OPTIONS[i];
+        textSpan.textContent = feedBotListOptions[i];
         feedBotListItem.appendChild(textSpan)
         feedBotListFeatures.appendChild(feedBotListItem);
-        switch (Globals.FEEDBOT_LIST_OPTIONS[i]) {
-            case Globals.SCHEDULED_MESSAGES_PARAM:
+        switch (feedBotListOptions[i]) {
+            case translation.scheduledMessages:
                 feedBotListItem.addEventListener("click", showScheduledMessages)
                 break;
-            case Globals.EXPORT_TO_EXCEL_PARAM:
+            case translation.exportToExcel:
                 const excelSubListFeatures = document.createElement("ul");
                 excelSubListFeatures.className = "fb-excel-features-dropdown";
                 const arrowSvgData = {
@@ -312,19 +316,22 @@ async function addFeedBotFeatures() {
                 feedBotListItem.childNodes[0].style.display = "flex"
                 feedBotListItem.childNodes[0].appendChild(arrowElement)
                 feedBotListItem.appendChild(excelSubListFeatures)
-                for (let i = 0; i < Globals.EXCEL_FEATURES_LIST_OPTIONS.length; i++) {
+                for (let i = 0; i < excelFeaturesListOptions.length; i++) {
                     const excelListItem = document.createElement("li");
                     excelListItem.className = "fb-list-item";
                     const textSpan = document.createElement("span");
-                    textSpan.textContent = Globals.EXCEL_FEATURES_LIST_OPTIONS[i];
+                    textSpan.textContent = excelFeaturesListOptions[i];
                     excelListItem.appendChild(textSpan)
                     excelSubListFeatures.appendChild(excelListItem);
-                    switch (Globals.EXCEL_FEATURES_LIST_OPTIONS[i]) {
-                        case Globals.ALL_GROUP_PARTICIPANTS_PARAM:
+                    switch (excelFeaturesListOptions[i]) {
+                        case translation.participantsFromAllGroups:
                             excelListItem.addEventListener("click", getAllGroupsParticipants)
                             break;
-                        case Globals.SELECTED_GROUPS_PARTICIPANTS_PARAM:
+                        case translation.participantsFromSelectedGroups:
                             excelListItem.addEventListener("click", getSelectedGroupsParticipants)
+                            break;
+                        case translation.allWhatsAppContacts:
+                            excelListItem.addEventListener("click" , getAllWhatsAppContacts)
                             break;
                     }
                 }
@@ -332,7 +339,7 @@ async function addFeedBotFeatures() {
         }
     }
     feedBotIcon.appendChild(feedBotListFeatures);
-    listFadeIn(feedBotListFeatures,300)
+    GeneralUtils.listFadeIn(feedBotListFeatures,300)
 }
 
 
@@ -354,10 +361,18 @@ async function getSelectedGroupsParticipants(){
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
 
 }
+
+async function getAllWhatsAppContacts() {
+    const modelStorageDB = await GeneralUtils.getDB("model-storage")
+     await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB , 'contact','isAddressBookContact' , 1).then((response)=>{
+        const result = response.result;
+        console.log(result)
+    })
+}
 async function getAllGroupsParticipants() {
     let phones;
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
-    const IDBRequest = await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB , 'participant').then((response)=>{
+    await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB , 'participant').then((response)=>{
         const groupParticipants = response.result;
         const participants = groupParticipants.map(item => {
             if (item.participants.length > 0 || true){
@@ -370,7 +385,7 @@ async function getAllGroupsParticipants() {
         })
 
         const phonesObjects = phones.map(phone => ({ phone })); // must convert to object like phone:"972546432705"
-        ExcelUtils.exportToExcel(phonesObjects,"טלפונים מכל הקבוצות")
+        ExcelUtils.exportToExcel(phonesObjects,translation.phonesFromAllGroups)
     })
     // const IDBRequest1 = await getObjectStoresByKeyFromDB(modelStorageDB , 'group-metadata').then((response)=>{
     //     console.log(response)
@@ -457,15 +472,15 @@ async function showScheduledMessages() {
                     deleteMessageButton.setAttribute("key", item.id)
                     deleteMessageButton.addEventListener('click' , (e)=>{
                         Swal.fire({
-                            title: 'מחיקת הודעה',
-                            text: "האם אתה בטוח שתרצה למחוק הודעה זו?",
+                            title: translation.deleteMessage,
+                            text: translation.sureAboutDeleteMessage,
                             icon: 'warning',
                             showCancelButton: true,
                             reverseButtons : true,
                             confirmButtonColor: '#3085d6',
                             cancelButtonColor: '#d33',
-                            cancelButtonText : "בטל" ,
-                            confirmButtonText: 'כן, מחק',
+                            cancelButtonText : translation.confirmCancel,
+                            confirmButtonText: translation.confirmDelete,
                             customClass: {
                                 confirmButton: 'custom-confirm-button-sa',
                                 cancelButton: 'custom-cancel-button-sa'
@@ -475,7 +490,7 @@ async function showScheduledMessages() {
                                 item.deleted = true;
                                 ChromeUtils.updateItem(item)
                                 clearTimeOutItem(item.id)
-                                SwalUtils.showToastMessage('bottom-end',5*Globals.SECOND,true,"ההודעה נמחקה בהצלחה")
+                                SwalUtils.showToastMessage('bottom-end',5*Globals.SECOND,true,translation.deletedSuccessfullyMessage)
                             }
 
                         })
@@ -506,7 +521,7 @@ async function showScheduledMessages() {
         } else {
             emptyMessagesAlert = document.createElement('div');
             emptyMessagesAlert.className = "empty-scheduler-messages";
-            emptyMessagesAlert.innerHTML = "אין הודעות מתוזמנות"
+            emptyMessagesAlert.innerHTML = translation.arentScheduledMessages
             messagesList.appendChild(emptyMessagesAlert)
         }
     }
@@ -525,11 +540,11 @@ async function addSchedulerButton() {
             const pttElement = composeBoxElement.childNodes[1].childNodes[0].childNodes[1].childNodes[1];
             clockIcon = pttElement.cloneNode(true)
             clockIcon.id = "clock-icon"
-            clockIcon.title = "תזמון הודעה"
+            clockIcon.title = translation.scheduleMessage
             const buttonChild = clockIcon.childNodes[0]
             const spanChild = buttonChild.childNodes[0]
             buttonChild.setAttribute('data-testid', 'scheduler-btn');
-            buttonChild.setAttribute('aria-label', 'תזמון הודעה');
+            buttonChild.setAttribute('aria-label', translation.scheduleMessage);
             spanChild.setAttribute('data-testid', 'scheduler');
             spanChild.setAttribute('data-icon', 'scheduler');
             if (spanChild.classList.length === 2){
@@ -621,7 +636,7 @@ const sendMessage = async (id) => {
                 console.log("starting to sending message to id: " + id)
                 client.sendingType = Globals.SINGLE_CONTACT_SENDING;
                 let element = document.createElement("a");
-                element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
+                element.href = `https://api.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
                 element.id = "mychat";
                 document.body.append(element);
                 let p1 = document.getElementById("mychat");
@@ -844,7 +859,7 @@ function openSchedulerModal() {
 function showUserTypingAlert(timer,contactName) {
     let timerInterval
     Swal.fire({
-        title: ` תזמון הודעה ל ${contactName}`,
+        title: ` ${translation.scheduledMessageTo} ${contactName}`,
         html: 'ההודעה תשלח בעוד <b></b> שניות',
         timer: timer,
         timerProgressBar: false,
@@ -868,7 +883,7 @@ function showUserTypingAlert(timer,contactName) {
 const showErrorMessage = (message) => {
     Swal.fire({
         icon: 'error',
-        title: 'אופס',
+        title: translation.oops,
         text: message,
     }).then()
 }
@@ -880,7 +895,7 @@ const showSentMessagesPopup = (unSentMessages) => {
     const container = document.createElement("div");
     container.className = "un-sent-container";
     const headline = document.createElement("div");
-    headline.innerText = "ההודעות הבאות לא נשלחות האם את/ה מעוניינ/ת לשלוח את ההודעות?";
+    headline.innerText = translation.unSendingMessage;
     headline.style.fontWeight = "600";
     headline.style.fontSize = "0.8em"
     container.appendChild(headline);
@@ -888,22 +903,23 @@ const showSentMessagesPopup = (unSentMessages) => {
         let divItem = document.createElement('div')
         divItem.className = "un-sent-message";
         divItem.innerText = `${index+1}) ${item.chatTitleElement.chatName} (${item.message})`
-        divItem.style.width = "max-content"
-        divItem.style.marginTop = "8px"
+        divItem.style.marginTop = "0.8em"
         container.appendChild(divItem)
     })
     Swal.fire({
-        title: 'הודעות מתוזמנות',
+        title: translation.scheduledMessages,
         html: container,
         icon: 'info',
         reverseButtons: true,
         showCancelButton: true,
-        confirmButtonText: 'כן,שלח',
-        cancelButtonText : 'ביטול'
+        confirmButtonText: translation.confirmSending ,
+        cancelButtonText : translation.confirmCancel
     }).then((result) => {
         if (result.isConfirmed) {
             unSentMessages.forEach(item=>{
-                sendMessage(item.id).then()
+                sendMessage(item.id).then(()=>{
+                    console.log("message has been sent number: " + item.id)
+                })
             })
         }
         if (result.isDismissed){
