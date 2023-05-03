@@ -15,15 +15,6 @@ let completeStatusCounter = 0;
 let currentChatDetails = {type:"", media:"" , chatId: ""}
 let feedBotIcon;
 let load = false;
-let addedDateSelectedOptions = false
-let closeSchedulerModal;
-let cancelSchedulerModalButton;
-let dateInputSchedulerModal
-let hourSelectorSchedulerModal;
-let minuteSelectorSchedulerModal;
-let sendButtonSchedulerModal;
-let messageSchedulerModal;
-let schedulerModal;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
@@ -57,7 +48,6 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
 
 const loadExtension = async () => {
     await addFeedBotIcon();
-    await addModalToDOM();
     await initMessagesTimeOut();
     await addSchedulerListToDOM();
     await chatListener();
@@ -123,45 +113,63 @@ function addFeedBotIcon() {
 }
 
 
-function addModalToDOM() {
-    let modal = document.querySelector(Globals.schedulerModalElement)
-    if (!modal) {
-        let htmlUrl = chrome.runtime.getURL("html/modal.html");
-        fetch(htmlUrl)
-            .then(response => response.text())
-            .then(html => {
+ function getHtmlFile() {
+     return new Promise((async resolve => {
+        let htmlUrl = chrome.runtime.getURL("html/schedulerModal.html");
+        await fetch(htmlUrl)
+            .then((response) => {
+                return response.text();
+            })
+            .then((html) => {
                 let modalContainer = document.createElement("div");
+                modalContainer.className = "scheduler-modal-container";
                 modalContainer.innerHTML = html;
-                document.body.appendChild(modalContainer);
+                resolve(modalContainer)
             });
-    }
-    waitForNode(document.body, Globals.schedulerModalElement).then((modal) => {
-        schedulerModal = modal;
-        dateInputSchedulerModal = schedulerModal.querySelector('#datepicker')
-        closeSchedulerModal = schedulerModal.querySelector("#close-modal");
-        cancelSchedulerModalButton = schedulerModal.querySelector("#cancel-modal-button");
-        hourSelectorSchedulerModal = schedulerModal.querySelector("#hour");
-        minuteSelectorSchedulerModal = schedulerModal.querySelector("#minute");
-        sendButtonSchedulerModal = schedulerModal.querySelector("#send-button");
-        messageSchedulerModal = schedulerModal.querySelector('#message')
-        if (!addedDateSelectedOptions) {
-            addSelectOptions(hourSelectorSchedulerModal, "hour")
-            addSelectOptions(minuteSelectorSchedulerModal, "minute")
-        }
-        closeSchedulerModal.addEventListener('click', () => {clearSchedulerModal();})
-        cancelSchedulerModalButton.addEventListener('click', () => {clearSchedulerModal()})
-        sendButtonSchedulerModal.addEventListener("click", async () => {
-            await handleSendButtonClick({type:Globals.NEW_MESSAGE})
-        });
-
-    })
-
-    /// background for popups
-    modalBackdrop = document.createElement('div');
-    modalBackdrop.className = "modal-backdrop";
-    document.body.appendChild(modalBackdrop)
+    }))
 }
 
+async function openSchedulerModal(messageType) {
+    let modalContainer = await getHtmlFile();
+    let dateInputSchedulerModal = modalContainer.querySelector('#datepicker')
+    let closeSchedulerModal = modalContainer.querySelector("#close-modal");
+    let cancelSchedulerModalButton = modalContainer.querySelector("#cancel-modal-button");
+    let hourSelectorSchedulerModal = modalContainer.querySelector("#hour");
+    let minuteSelectorSchedulerModal = modalContainer.querySelector("#minute");
+    let sendButtonSchedulerModal = modalContainer.querySelector("#send-button");
+    let messageSchedulerModal = modalContainer.querySelector('#message')
+    addSelectOptions(hourSelectorSchedulerModal, "hour")
+    addSelectOptions(minuteSelectorSchedulerModal, "minute")
+    if (messageType === Globals.NEW_MESSAGE) {
+        let currentDate = new Date();
+        dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
+        hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
+        minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
+        let textInput = document.querySelectorAll('[class*="text-input"]')[1];
+        if (textInput.textContent !== chatInputPlaceholder) {
+            messageSchedulerModal.value = textInput.textContent
+        }
+    }
+    closeSchedulerModal.addEventListener('click',  () => {clearModal();})
+    cancelSchedulerModalButton.addEventListener('click',  () => {clearModal()})
+    sendButtonSchedulerModal.addEventListener("click", async () => {
+        await handleSendButtonClick({type: Globals.NEW_MESSAGE})
+    });
+    let modalContainerExist = document.getElementsByClassName('scheduler-modal-container')[0];
+    if (!modalContainerExist){addModalToDOM(modalContainer);}
+}
+
+ function addModalToDOM(modalContainer) {
+     modalBackdrop = document.createElement('div');
+     modalBackdrop.className = "modal-backdrop";
+     document.body.appendChild(modalContainer)
+     document.body.appendChild(modalBackdrop)
+ }
+function clearModal() {
+    document.getElementsByClassName('scheduler-modal-container')[0].remove()
+    document.getElementsByClassName('modal-backdrop')[0].remove()
+
+}
 
 async function initMessagesTimeOut() {
     waitForNode(document.body , WhatsAppGlobals.paneSideElement).then(async () => {
@@ -235,11 +243,7 @@ function clearTimeOutItem(id) {
 
 
 
-function clearSchedulerModal() {
-    schedulerModal.style.display = "none";
-    modalBackdrop.style.display = "none"
-    messageSchedulerModal.value = '';
-}
+
 
 function addSchedulerListToDOM() {
     const schedulerListContainer = document.createElement("div");
@@ -559,12 +563,13 @@ async function addSchedulerButton() {
             svgPathElement.setAttribute("d", Globals.CLOCK_SVG_PATH_VALUE);
         }
         composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
-        clockIcon.removeEventListener('click', () => {});
-        clockIcon.addEventListener('click', (e) => {
-            e.preventDefault()
-                openSchedulerModal();
-                // need to fix open scheduler multiple times
+        clockIcon.removeEventListener('click', ()=>{});
+        clockIcon.addEventListener('click', (e)=>{
+            e.preventDefault();
+            clockIcon.disabled = true
+            openSchedulerModal(Globals.NEW_MESSAGE);
         });
+
     }
 
 
@@ -574,17 +579,17 @@ async function addSchedulerButton() {
 
 async function handleSendButtonClick(data) {
     let scheduleMessageWarning = {show: false, warningMessage: Globals.MESSAGE_MISSING_TEXT};
-    let message = messageSchedulerModal.value.trim();
-    console.log(message)
-    const date = dateInputSchedulerModal.value;
-    const hour = hourSelectorSchedulerModal.value;
-    let minute = minuteSelectorSchedulerModal.value;
-    if (message.length === 0) {scheduleMessageWarning.show = true;}
+    const schedulerModal = document.getElementsByClassName('scheduler-modal-container')[0];
+    let message = schedulerModal.querySelector('#message').value.trim();
+    const date = schedulerModal.querySelector('#datepicker').value;
+    const hour = schedulerModal.querySelector('#hour').value;
+    let minute = schedulerModal.querySelector('#minute').value;
     if (minute < 10) {minute = "0" + minute;}
     const dateTimeStr = date + " " + hour + ":" + minute;
     let scheduledTime = (new Date(dateTimeStr)).getTime();
     if (scheduledTime <= Date.now()) {scheduledTime = new Date().getTime()}
-    await clearSchedulerModal();
+    if (message.length === 0) {scheduleMessageWarning.show = true;}
+    await clearModal();
     if (!scheduleMessageWarning.show) {
         if (data.type === Globals.NEW_MESSAGE) {
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
@@ -842,19 +847,19 @@ function addSelectOptions(selector, selectorName) {
     }
 }
 
-function openSchedulerModal() {
-    schedulerModal.style.display = "block";
-    modalBackdrop.style.display = "block";
-    let currentDate = new Date();
-    dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
-    hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
-    minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
-    let textInput  = document.querySelectorAll('[class*="text-input"]')[1];
-    console.log(chatInputPlaceholder)
-    if (textInput.textContent !== chatInputPlaceholder){
-        messageSchedulerModal.value = textInput.textContent
-    }
-}
+// function openSchedulerModal() {
+//     schedulerModal.style.display = "block";
+//     modalBackdrop.style.display = "block";
+//     let currentDate = new Date();
+//     dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
+//     hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
+//     minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
+//     let textInput  = document.querySelectorAll('[class*="text-input"]')[1];
+//     console.log(chatInputPlaceholder)
+//     if (textInput.textContent !== chatInputPlaceholder){
+//         messageSchedulerModal.value = textInput.textContent
+//     }
+// }
 
 function showUserTypingAlert(timer,contactName) {
     let timerInterval
