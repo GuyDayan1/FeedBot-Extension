@@ -1,4 +1,4 @@
-import * as GeneralUtils from "./generalutils";
+import * as GeneralUtils from "./general-utils";
 
 
 export function getActiveTabURL() {

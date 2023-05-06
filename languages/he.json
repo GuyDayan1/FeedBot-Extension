@@ -15,7 +15,12 @@
   "deletedSuccessfullyMessage": "ההודעה נמחקה בהצלחה",
   "arentScheduledMessages" : "אין הודעות מתוזמנות" ,
   "scheduleMessage" : "תזמון הודעה" ,
-  "scheduledMessageTo" : "תזמן הודעה ל" ,
+  "scheduledMessageTo" : "תזמון הודעה ל" ,
   "oops" : "אופס" ,
-  "unSentMessage" : "ההודעות הבאות לא נשלחו האם את/ה מעוניינ/ת לשלוח את ההודעות?"
+  "unSentMessage" : "ההודעות הבאות לא נשלחו האם את/ה מעוניינ/ת לשלוח את ההודעות?",
+  "unSavedContacts" : "אנשי קשר לא שמורים",
+  "savedContacts" : "אנשי קשר שמורים",
+  "phoneNumber" : "מספר טלפון" ,
+  "contactName" : "שם איש קשר" ,
+  "whatsappUsername" : "שם משתמש בווטסאפ"
 }

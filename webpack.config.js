@@ -1,12 +1,15 @@
-// webpack.config.js
-
 const path = require('path');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
-    entry: './js/content.js', // Specify the entry point of your content script
+    entry: './js/content.js',
     output: {
-        filename: 'bundle.js', // Specify the output file name
-        path: path.resolve(__dirname, 'dist'), // Specify the output file path
+        filename: 'bundle.js',
+        path: path.resolve(__dirname, 'dist'),
     },
-    mode: 'production', // Set the mode to 'production' or 'development' based on your needs
+    mode: 'production',
+    optimization: {
+        minimize: true,
+        minimizer: [new TerserPlugin()],
+    },
 };

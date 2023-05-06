@@ -5,6 +5,7 @@
   "version": "1.0.1",
   "background": {
     "service_worker": "js/background.js"
+
   },
   "options_ui": {
     "page" : "html/options.html"  ,
@@ -14,15 +15,15 @@
   "host_permissions": ["https://web.whatsapp.com/*"],
   "content_scripts": [
     {
-      "matches": ["https://web.whatsapp.com/*", "https://api.whatsapp.com/*"],
+      "matches": ["https://web.whatsapp.com/*"],
       "css": ["css/content.css" , "css/modal.css" , "node_modules/sweetalert2/dist/sweetalert2.css" ,"css/variables.css"],
-      "js": ["dist/bundle.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js", "node_modules/xlsx/dist/xlsx.mini.min.js"]
+      "js": ["dist/bundle.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js" , "node_modules/xlsx/dist/xlsx.mini.min.js"]
     }
   ],
 
   "web_accessible_resources": [
     {
-      "resources": ["images/*" ,"html/*" , "css/modal.css" , "css/variables.css" , "languages/*"],
+      "resources": ["images/*" ,"html/*" , "css/modal.css" , "css/variables.css" , "languages/*" , ""],
       "matches": ["https://web.whatsapp.com/*"]
     }
   ],

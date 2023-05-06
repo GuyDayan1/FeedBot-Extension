@@ -5,13 +5,7 @@ export const LEFT_ARROW_SVG_PATH_VALUE = "M24 14L4 14M10 8L4 14L10 20";
 export const RIGHT_ARROW_SVG_PATH_VALUE = "M4 14L24 14M18 20L24 14L18 8";
 export const USER_TYPING_WARNING_TIME = 5;
 export const SECOND = 1000;
-// export const SCHEDULED_MESSAGES_PARAM = "הודעות מתוזמנות";
-// export const EXPORT_TO_EXCEL_PARAM = "יצא לאקסל";
-// export const ALL_GROUP_PARTICIPANTS_PARAM = "משתתפים מכל הקבוצות הקיימות";
-// export const SELECTED_GROUPS_PARTICIPANTS_PARAM = "משתתפים לפי בחירה מקבוצות";
-// export const ALL_WHATSAPP_CONTACT = "אנשי הקשר מהווטסאפ"
-// export const FEEDBOT_LIST_OPTIONS = [SCHEDULED_MESSAGES_PARAM, EXPORT_TO_EXCEL_PARAM]
-// export const EXCEL_FEATURES_LIST_OPTIONS = [ALL_WHATSAPP_CONTACT , ALL_GROUP_PARTICIPANTS_PARAM,SELECTED_GROUPS_PARTICIPANTS_PARAM]
+
 export const MESSAGE_MISSING_TEXT = "ההודעה חייבת להכיל טקסט"
 export const GROUP_PARAM = "group";
 export const CONTACT_PARAM = "contact"

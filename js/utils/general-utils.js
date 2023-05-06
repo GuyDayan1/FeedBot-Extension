@@ -76,7 +76,17 @@ export function getObjectStoreByIndexFromDb(db , key , indexName , query){
         };
     }))
 }
-
+export function getAllObjectStoreByIndexFromDb(db , key , indexName){
+    return new Promise((async (resolve) => {
+        let transaction = db.transaction(key, 'readonly');
+        let objectStore = transaction.objectStore(key);
+        let index = objectStore.index(indexName.toString());
+        let getAllRequest = index.getAll();
+        getAllRequest.onsuccess = () => {
+            resolve(getAllRequest)
+        };
+    }))
+}
 export function getChatDetails() {
     let type;
     let media;
@@ -93,4 +103,15 @@ export function getChatDetails() {
         type = Globals.CONTACT_PARAM
     }
     return {type, media, chatId}
+}
+
+export const addScrollingAbility = (list) => {
+    list.addEventListener('scroll', function() {
+        const isOverflowing = list.scrollHeight > list.clientHeight;
+        if (isOverflowing) {
+            list.style.overflowY = 'scroll';
+        } else {
+            list.style.overflowY = 'auto';
+        }
+    });
 }

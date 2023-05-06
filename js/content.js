@@ -1,10 +1,11 @@
-import * as ChromeUtils from "./utils/chromeutils";
-import * as GeneralUtils from "./utils/generalutils"
+import * as ChromeUtils from "./utils/chrome-utils";
+import * as GeneralUtils from "./utils/general-utils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
-import * as ExcelUtils from './utils/excelutils'
-import * as SwalUtils from './utils/swalutils'
-
+import * as SwalUtils from './utils/swal-utils'
+import * as ExcelUtils from "./utils/excel-utils";
+import Swal from "sweetalert2";
+import {getScheduleMessageById} from "./utils/chrome-utils";
 
 
 let headerElement;
@@ -12,13 +13,13 @@ let cellFrameElement;
 let connected = false;
 let schedulerMessagesDisplay = false;
 let completeStatusCounter = 0;
-let currentChatDetails = {type:"", media:"" , chatId: ""}
+let currentChatDetails = {type: "", media: "", chatId: ""}
 let feedBotIcon;
 let load = false;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
-let client = {state : Globals.UNUSED_STATE , sendingType:"" , language: "he"};
+let client = {state: Globals.UNUSED_STATE, sendingType: "", language: "he"};
 let chatInputPlaceholder = '';
 let activeMessagesTimeout = {};
 let translation = {}
@@ -27,14 +28,11 @@ let feedBotListOptions = [];
 let excelFeaturesListOptions = []
 
 
-
-
-
 chrome.runtime.onMessage.addListener((message, sender, response) => {
     if (message === "complete") {
         completeStatusCounter++;
         if ((completeStatusCounter > 1) && (!load)) {
-            initTranslations().then(()=>{
+            initTranslations().then(() => {
                 console.log("Finish to load translations")
                 console.log(translation)
                 loadExtension().then(() => console.log("Finish to load extension"))
@@ -49,13 +47,12 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
 const loadExtension = async () => {
     await addFeedBotIcon();
     await initMessagesTimeOut();
-    await addSchedulerListToDOM();
     await chatListener();
 };
 
 
 async function initTranslations() {
-    client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"','').split("_")[0] || Globals.HEBREW_LANGUAGE_PARAM;
+    client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"', '').split("_")[0] || Globals.HEBREW_LANGUAGE_PARAM;
     let languagePath = `languages/${client.language}.json`;
     let htmlUrl = chrome.runtime.getURL(languagePath);
     const response = await fetch(htmlUrl);
@@ -79,11 +76,11 @@ function addFeedBotIcon() {
                 feedBotIcon.className = "feedBot-icon";
                 feedBotIcon.title = "FeedBot";
                 childNodes[0].insertBefore(feedBotIcon, firstChild);
-                feedBotIcon.addEventListener('click' , ()=>{
+                feedBotIcon.addEventListener('click', () => {
                     const feedBotFeaturesList = document.getElementsByClassName("fb-features-dropdown")[0]
-                    if (!feedBotFeaturesList){
+                    if (!feedBotFeaturesList) {
                         addFeedBotFeatures()
-                    }else {
+                    } else {
                         removeFeedBotFeatures()
                     }
                 })
@@ -96,15 +93,15 @@ function addFeedBotIcon() {
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
 
-            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)){
+            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {
                 chatInputPlaceholder = translation.typeMessage
             }
-            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)){
+            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)) {
                 chatInputPlaceholder = translation.typeMessage
             }
 
-            feedBotListOptions.push(translation.scheduledMessages , translation.exportToExcel)
-            excelFeaturesListOptions.push(translation.allWhatsAppContacts , translation.participantsFromAllGroups , translation.participantsFromSelectedGroups)
+            feedBotListOptions.push(translation.scheduledMessages, translation.exportToExcel)
+            excelFeaturesListOptions.push(translation.allWhatsAppContacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
             //ChromeUtils.clearStorage()
         }
 
@@ -113,8 +110,8 @@ function addFeedBotIcon() {
 }
 
 
- function getHtmlFile() {
-     return new Promise((async resolve => {
+function getHtmlFile() {
+    return new Promise((async resolve => {
         let htmlUrl = chrome.runtime.getURL("html/schedulerModal.html");
         await fetch(htmlUrl)
             .then((response) => {
@@ -129,7 +126,7 @@ function addFeedBotIcon() {
     }))
 }
 
-async function openSchedulerModal(messageType) {
+async function openSchedulerModal(data) {
     let modalContainer = await getHtmlFile();
     let dateInputSchedulerModal = modalContainer.querySelector('#datepicker')
     let closeSchedulerModal = modalContainer.querySelector("#close-modal");
@@ -140,7 +137,9 @@ async function openSchedulerModal(messageType) {
     let messageSchedulerModal = modalContainer.querySelector('#message')
     addSelectOptions(hourSelectorSchedulerModal, "hour")
     addSelectOptions(minuteSelectorSchedulerModal, "minute")
-    if (messageType === Globals.NEW_MESSAGE) {
+    closeSchedulerModal.addEventListener('click', () => {clearSchedulerModal();})
+    cancelSchedulerModalButton.addEventListener('click', () => {clearSchedulerModal()})
+    if (data.type === Globals.NEW_MESSAGE) {
         let currentDate = new Date();
         dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
         hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
@@ -150,30 +149,40 @@ async function openSchedulerModal(messageType) {
             messageSchedulerModal.value = textInput.textContent
         }
     }
-    closeSchedulerModal.addEventListener('click',  () => {clearModal();})
-    cancelSchedulerModalButton.addEventListener('click',  () => {clearModal()})
+    if (data.type === Globals.EDIT_MESSAGE){
+        const item = await getScheduleMessageById(data.itemId)
+        dateInputSchedulerModal.value = item.scheduledTime.toISOString().slice(0, 10);
+        hourSelectorSchedulerModal.selectedIndex = item.scheduledTime.getHours();
+        minuteSelectorSchedulerModal.selectedIndex = item.scheduledTime.getMinutes()
+        messageSchedulerModal.value = item.message;
+    }
     sendButtonSchedulerModal.addEventListener("click", async () => {
-        await handleSendButtonClick({type: Globals.NEW_MESSAGE})
+        await handleSendButtonClick(data)
     });
+
     let modalContainerExist = document.getElementsByClassName('scheduler-modal-container')[0];
-    if (!modalContainerExist){addModalToDOM(modalContainer);}
+    if (!modalContainerExist) {
+        addModalToDOM(modalContainer);
+    }
 }
 
- function addModalToDOM(modalContainer) {
-     modalBackdrop = document.createElement('div');
-     modalBackdrop.className = "modal-backdrop";
-     document.body.appendChild(modalContainer)
-     document.body.appendChild(modalBackdrop)
- }
-function clearModal() {
+function addModalToDOM(modal) {
+    modalBackdrop = document.createElement('div');
+    modalBackdrop.className = "modal-backdrop";
+    document.body.appendChild(modal)
+    document.body.appendChild(modalBackdrop)
+}
+
+function clearSchedulerModal() {
     document.getElementsByClassName('scheduler-modal-container')[0].remove()
     document.getElementsByClassName('modal-backdrop')[0].remove()
-
 }
 
 async function initMessagesTimeOut() {
-    waitForNode(document.body , WhatsAppGlobals.paneSideElement).then(async () => {
-        if (Object.keys(activeMessagesTimeout.length === 0)) {await clearAllItemsTimeOuts();}
+    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(async () => {
+        if (Object.keys(activeMessagesTimeout.length === 0)) {
+            await clearAllItemsTimeOuts();
+        }
         let schedulerMessages = await ChromeUtils.getSchedulerMessages();
         const now = Date.now();
         const relevantMessages = [];
@@ -209,7 +218,8 @@ function chatListener() {
                 waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, 3000)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
-                        if (!clockIcon){
+                        if (!clockIcon) {
+                            console.log("add clock")
                             addSchedulerButton()
                         }
                     })
@@ -226,11 +236,8 @@ function chatListener() {
 async function clearAllItemsTimeOuts() {
     for (let id in activeMessagesTimeout) {
         clearTimeout(activeMessagesTimeout[id]);
-        console.log("cleared,  id: " + id +" timeoutId " + activeMessagesTimeout[id])
+        console.log("cleared,  id: " + id + " timeoutId " + activeMessagesTimeout[id])
     }
-    activeMessagesTimeout = {}
-    console.log("active messages timeouts:")
-    console.log(activeMessagesTimeout)
 }
 
 function clearTimeOutItem(id) {
@@ -242,54 +249,17 @@ function clearTimeOutItem(id) {
 }
 
 
-
-
-
-function addSchedulerListToDOM() {
-    const schedulerListContainer = document.createElement("div");
-    schedulerListContainer.className = "scheduler-messages-container";
-
-    const backToChatList = document.createElement('div')
-    backToChatList.className = "back-to-chat-list";
-    backToChatList.innerText = translation.backToChat
-
-
-    const messagesList = document.createElement("div");
-    messagesList.className = "messages-list";
-
-    messagesList.addEventListener('scroll', function() {
-        const isOverflowing = messagesList.scrollHeight > messagesList.clientHeight;
-        if (isOverflowing) {
-            messagesList.style.overflowY = 'scroll';
-        } else {
-            messagesList.style.overflowY = 'auto';
-        }
-    });
-    backToChatList.addEventListener('click', () => {
-        const paneSideElement = document.querySelector(WhatsAppGlobals.paneSideElement);
-        schedulerListContainer.style.display = "none";
-        paneSideElement.style.display = "block";
-        schedulerMessagesDisplay = false;
-    })
-
-    schedulerListContainer.appendChild(backToChatList)
-    schedulerListContainer.appendChild(messagesList);
-
-
-    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then((element) => {
-        element.insertAdjacentElement('afterend', schedulerListContainer)
-    })
-
-}
-
 async function getSvgWhatsAppElement() {
     whatsAppSvgElement = document.querySelector(WhatsAppGlobals.menuElement)
-    whatsAppSvgElement.removeEventListener('click' , ()=>{})
+    whatsAppSvgElement.removeEventListener('click', () => {
+    })
 }
-async function removeFeedBotFeatures(){
+
+async function removeFeedBotFeatures() {
     const feedBotListFeatures = document.getElementsByClassName("fb-features-dropdown")[0];
     feedBotIcon.removeChild(feedBotListFeatures)
 }
+
 async function addFeedBotFeatures() {
     console.log("Here")
     const feedBotListFeatures = document.createElement("ul");
@@ -303,7 +273,9 @@ async function addFeedBotFeatures() {
         feedBotListFeatures.appendChild(feedBotListItem);
         switch (feedBotListOptions[i]) {
             case translation.scheduledMessages:
-                feedBotListItem.addEventListener("click", showScheduledMessages)
+                feedBotListItem.addEventListener("click", ()=>{
+                        showScheduledMessages()
+                })
                 break;
             case translation.exportToExcel:
                 const excelSubListFeatures = document.createElement("ul");
@@ -335,7 +307,7 @@ async function addFeedBotFeatures() {
                             excelListItem.addEventListener("click", getSelectedGroupsParticipants)
                             break;
                         case translation.allWhatsAppContacts:
-                            excelListItem.addEventListener("click" , getAllWhatsAppContacts)
+                            excelListItem.addEventListener("click", getAllWhatsAppContacts)
                             break;
                     }
                 }
@@ -343,7 +315,7 @@ async function addFeedBotFeatures() {
         }
     }
     feedBotIcon.appendChild(feedBotListFeatures);
-    GeneralUtils.listFadeIn(feedBotListFeatures,300)
+    GeneralUtils.listFadeIn(feedBotListFeatures, 300)
 }
 
 
@@ -351,45 +323,73 @@ function createSvgElement(data) {
     let element = whatsAppSvgElement.cloneNode(true)
     element.setAttribute('data-testid', data.data_testid);
     element.setAttribute('data-icon', data.data_icon);
-    element.childNodes[0].setAttribute('height' , data.height)
-    element.childNodes[0].setAttribute('width' , data.width)
-    element.childNodes[0].childNodes[0].setAttribute('d' , data.d)
+    element.childNodes[0].setAttribute('height', data.height)
+    element.childNodes[0].setAttribute('width', data.width)
+    element.childNodes[0].childNodes[0].setAttribute('d', data.d)
     return element;
 }
+
 const enterGroupChatByName = async (groupName) => {
 
 
 }
 
-async function getSelectedGroupsParticipants(){
+async function getSelectedGroupsParticipants() {
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
+
 
 }
 
 async function getAllWhatsAppContacts() {
+
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
-     await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB , 'contact','isAddressBookContact' , 1).then((response)=>{
+    //not saved on my phone
+    await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 0).then((response) => {
         const result = response.result;
-        console.log(result)
+        const unSavedContacts = result.map(item => {
+            const phoneNumber = item.id.split('@')[0];
+            const pushName = item.pushname || ''
+            return {phone: phoneNumber, name: pushName};
+        })
+        const headers = [translation.phoneNumber, translation.contactName]
+        ExcelUtils.exportToExcel(unSavedContacts, translation.unSavedContacts, headers)
+    })
+    //saved on my phone
+    await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 1).then((response) => {
+        const result = response.result;
+        const savedContacts = result.map(item => {
+            const phoneNumber = item.id.split('@')[0];
+            const phoneBookContactName = item.name || '';
+            const whatsappUserName = item.pushname || '';
+            return {phoneNumber, phoneBookContactName, whatsappUserName}
+        })
+        const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
+        ExcelUtils.exportToExcel(savedContacts, translation.savedContacts, headers)
+
+    })
+    // all
+    await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
+        const result = response.result;
     })
 }
+
 async function getAllGroupsParticipants() {
     let phones;
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
-    await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB , 'participant').then((response)=>{
+    await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB, 'participant').then((response) => {
         const groupParticipants = response.result;
         const participants = groupParticipants.map(item => {
-            if (item.participants.length > 0 || true){
+            if (item.participants.length > 0 || true) {
                 return item.participants;
             }
         }).flat();
         const uniqueParticipants = [...new Set(participants)]
-        phones = uniqueParticipants.map(chatId=> {
-          return chatId.split('@')[0]
+        phones = uniqueParticipants.map(chatId => {
+            return chatId.split('@')[0]
         })
 
-        const phonesObjects = phones.map(phone => ({ phone })); // must convert to object like phone:"972546432705"
-        ExcelUtils.exportToExcel(phonesObjects,translation.phonesFromAllGroups)
+        const phonesObjects = phones.map(phone => ({phone})); // must convert to object like phone:"972546432705"
+        ExcelUtils.exportToExcel(phonesObjects, translation.phonesFromAllGroups)
     })
     // const IDBRequest1 = await getObjectStoresByKeyFromDB(modelStorageDB , 'group-metadata').then((response)=>{
     //     console.log(response)
@@ -400,18 +400,30 @@ async function getAllGroupsParticipants() {
 }
 
 
-
-
-
-
 async function showScheduledMessages() {
-    if (!schedulerMessagesDisplay) {
-        const messagesContainerElement = document.getElementsByClassName("scheduler-messages-container")[0]
+    let schedulerMessagesExist = document.getElementsByClassName('scheduler-messages-container')[0]
+    if (!schedulerMessagesExist){
         const paneSideElement = document.querySelector(WhatsAppGlobals.paneSideElement)
-        const messagesList = document.getElementsByClassName("messages-list")[0];
+        const schedulerListContainer = document.createElement("div");
+        schedulerListContainer.className = "scheduler-messages-container";
+        const backToChatList = document.createElement('div')
+        backToChatList.className = "back-to-chat-list";
+        backToChatList.innerText = translation.backToChat
+        const messagesList = document.createElement("div");
+        messagesList.className = "messages-list";
+        GeneralUtils.addScrollingAbility(messagesList)
+        backToChatList.addEventListener('click', () => {
+            schedulerListContainer.remove()
+            paneSideElement.style.display = "flex";
+        })
+        schedulerListContainer.appendChild(backToChatList)
+        schedulerListContainer.appendChild(messagesList);
+        paneSideElement.insertAdjacentElement('afterend', schedulerListContainer)
         paneSideElement.style.display = "none"
-        messagesContainerElement.style.display = "block"
-        await GeneralUtils.clearChildesFromParent(messagesList)
+        // waitForNode(document.body, WhatsAppGlobals.paneSideElement).then((element) => {
+        //     element.insertAdjacentElement('afterend', schedulerListContainer)
+        // })
+        // await GeneralUtils.clearChildesFromParent(messagesList)
         const schedulerMessages = await ChromeUtils.getSchedulerMessages();
         const relevantMessages = schedulerMessages.filter(item => (!item.messageSent) && (!item.deleted))
         if (relevantMessages.length > 0) {
@@ -419,7 +431,6 @@ async function showScheduledMessages() {
                 const messageFrame = await createMessageFrame(item);
                 messagesList.appendChild(messageFrame);
             }
-
             async function createMessageFrame(item) {
                 const newCellFrame = cellFrameElement.cloneNode(true)
                 const clickListener = (event) => {};
@@ -474,16 +485,16 @@ async function showScheduledMessages() {
                     deleteMessageButton.textContent = "מחק"
                     deleteMessageButton.className = "custom-cancel-button"
                     deleteMessageButton.setAttribute("key", item.id)
-                    deleteMessageButton.addEventListener('click' , (e)=>{
+                    deleteMessageButton.addEventListener('click', (e) => {
                         Swal.fire({
                             title: translation.deleteMessage,
                             text: translation.sureAboutDeleteMessage,
                             icon: 'warning',
                             showCancelButton: true,
-                            reverseButtons : true,
+                            reverseButtons: true,
                             confirmButtonColor: '#3085d6',
                             cancelButtonColor: '#d33',
-                            cancelButtonText : translation.confirmCancel,
+                            cancelButtonText: translation.confirmCancel,
                             confirmButtonText: translation.confirmDelete,
                             customClass: {
                                 confirmButton: 'custom-confirm-button-sa',
@@ -494,7 +505,7 @@ async function showScheduledMessages() {
                                 item.deleted = true;
                                 ChromeUtils.updateItem(item)
                                 clearTimeOutItem(item.id)
-                                SwalUtils.showToastMessage('bottom-end',5*Globals.SECOND,true,translation.deletedSuccessfullyMessage)
+                                SwalUtils.showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.deletedSuccessfullyMessage)
                             }
 
                         })
@@ -502,17 +513,9 @@ async function showScheduledMessages() {
                     const editMessageButton = document.createElement('button')
                     editMessageButton.textContent = "ערוך"
                     editMessageButton.className = "custom-edit-button"
-                    editMessageButton.addEventListener('click' , async () => {
-                        await openSchedulerModal()
-                        sendButtonSchedulerModal.addEventListener("click", async () => {
-                            await handleSendButtonClick({type:Globals.EDIT_MESSAGE , itemId: item.id})
-                        });
+                    editMessageButton.addEventListener('click', async () => {
+                        await openSchedulerModal({type:Globals.EDIT_MESSAGE , itemId :item.id})
 
-                        // if (text.toString().trim().length === 0){
-                        //     showErrorMessage(Globals.MESSAGE_MISSING_TEXT)
-                        // }else {
-                        //     showToastMessage('top-end' , true , 5000 , false , "ההודעה נשמרה בהצלחה")
-                        // }
                     })
                     //editMessageButton.setAttribute("key", item.id)
                     iconPlaceElement.insertBefore(deleteMessageButton, iconPlaceElement.firstChild);
@@ -529,18 +532,14 @@ async function showScheduledMessages() {
             messagesList.appendChild(emptyMessagesAlert)
         }
     }
-    schedulerMessagesDisplay = true;
+
 }
-
-
-
-
 
 
 async function addSchedulerButton() {
     const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement)
-    if (composeBoxElement){
-        if (!clockIcon){
+    if (composeBoxElement) {
+        if (!clockIcon) {
             const pttElement = composeBoxElement.childNodes[1].childNodes[0].childNodes[1].childNodes[1];
             clockIcon = pttElement.cloneNode(true)
             clockIcon.id = "clock-icon"
@@ -551,7 +550,7 @@ async function addSchedulerButton() {
             buttonChild.setAttribute('aria-label', translation.scheduleMessage);
             spanChild.setAttribute('data-testid', 'scheduler');
             spanChild.setAttribute('data-icon', 'scheduler');
-            if (spanChild.classList.length === 2){
+            if (spanChild.classList.length === 2) {
                 spanChild.classList.remove(spanChild.classList[1])
             }
             const svgElement = clockIcon.childNodes[0].childNodes[0].childNodes[0]
@@ -563,18 +562,17 @@ async function addSchedulerButton() {
             svgPathElement.setAttribute("d", Globals.CLOCK_SVG_PATH_VALUE);
         }
         composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
-        clockIcon.removeEventListener('click', ()=>{});
-        clockIcon.addEventListener('click', (e)=>{
-            e.preventDefault();
+        clockIcon.removeEventListener('click', () => {
+        });
+        clockIcon.addEventListener('click', () => {
             clockIcon.disabled = true
-            openSchedulerModal(Globals.NEW_MESSAGE);
+            openSchedulerModal({type:Globals.NEW_MESSAGE});
         });
 
     }
 
 
 }
-
 
 
 async function handleSendButtonClick(data) {
@@ -588,8 +586,10 @@ async function handleSendButtonClick(data) {
     const dateTimeStr = date + " " + hour + ":" + minute;
     let scheduledTime = (new Date(dateTimeStr)).getTime();
     if (scheduledTime <= Date.now()) {scheduledTime = new Date().getTime()}
-    if (message.length === 0) {scheduleMessageWarning.show = true;}
-    await clearModal();
+    if (message.length === 0) {
+        scheduleMessageWarning.show = true;
+    }
+    await clearSchedulerModal();
     if (!scheduleMessageWarning.show) {
         if (data.type === Globals.NEW_MESSAGE) {
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
@@ -606,19 +606,19 @@ async function handleSendButtonClick(data) {
         }
         if (data.type === Globals.EDIT_MESSAGE) {
             ChromeUtils.getScheduleMessageById(data.itemId).then(result => {
-                let newItem = result;
-                newItem.message = message;
-                newItem.scheduledTime = scheduledTime;
-                newItem.dateTimeStr = dateTimeStr;
-                ChromeUtils.updateItem(newItem).then(r => {
-                    console.log("item updated")
+                let updatedItem = result;
+                updatedItem.message = message;
+                updatedItem.scheduledTime = scheduledTime;
+                updatedItem.dateTimeStr = dateTimeStr;
+                ChromeUtils.updateItem(updatedItem).then(r => {
                     console.log(r)
-                    // TODO : clear previous timeout and define new one
+                    initMessagesTimeOut()
                     // TODO : change text message
                 })
             })
         }
-    } else {
+    }
+    else {
         showErrorMessage(scheduleMessageWarning.warningMessage)
     }
 
@@ -627,17 +627,17 @@ async function handleSendButtonClick(data) {
 
 const sendMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id)
-    if (client.state === Globals.SENDING_STATE){
-        const sendingInterval = setInterval(()=>{
-            if (client.state === Globals.UNUSED_STATE){
+    if (client.state === Globals.SENDING_STATE) {
+        const sendingInterval = setInterval(() => {
+            if (client.state === Globals.UNUSED_STATE) {
                 clearInterval(sendingInterval)
                 sendMessage(id)
             }
-        },50)
-    }else {
+        }, 50)
+    } else {
         client.state = Globals.SENDING_STATE;
-        return new Promise(((resolve,reject) => {
-            if (item.type === Globals.CONTACT_PARAM){
+        return new Promise(((resolve, reject) => {
+            if (item.type === Globals.CONTACT_PARAM) {
                 console.log("starting to sending message to id: " + id)
                 client.sendingType = Globals.SINGLE_CONTACT_SENDING;
                 let element = document.createElement("a");
@@ -646,13 +646,13 @@ const sendMessage = async (id) => {
                 document.body.append(element);
                 let p1 = document.getElementById("mychat");
                 p1.click();
-                const waitForChatInterval = setInterval(()=> {
+                const waitForChatInterval = setInterval(() => {
                     const chatDetails = GeneralUtils.getChatDetails();
-                    if (chatDetails.chatId === item.chatId){
+                    if (chatDetails.chatId === item.chatId) {
                         clearInterval(waitForChatInterval)
                         const waitForTextInterval = setInterval(async () => {
                             const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
-                            if (composeBoxElement){
+                            if (composeBoxElement) {
                                 let textInput = document.querySelectorAll('[class*="text-input"]')[1]
                                 let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
                                 if (textContext === item.message) {
@@ -663,7 +663,7 @@ const sendMessage = async (id) => {
                                             p1.remove();
                                             item.messageSent = true;
                                             ChromeUtils.updateItem(item)
-                                            client = {state: Globals.UNUSED_STATE , sendingType: ""}
+                                            client = {state: Globals.UNUSED_STATE, sendingType: ""}
                                             resolve(true)
                                         })
                                         .catch(error => {
@@ -677,9 +677,9 @@ const sendMessage = async (id) => {
                                     p1.click();
                                 }
                             }
-                        } , 50)
+                        }, 50)
                     }
-                },300)
+                }, 300)
             }
         }))
     }
@@ -711,15 +711,15 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
                 id,
                 message,
                 scheduledTime,
-                chatId : currentChatDetails.chatId ,
-                media: currentChatDetails.media ,
-                type : currentChatDetails.type,
+                chatId: currentChatDetails.chatId,
+                media: currentChatDetails.media,
+                type: currentChatDetails.type,
                 imageUrl,
                 chatTitleElement,
                 dateTimeStr,
-                notifyBeforeSending ,
-                messageSent: false ,
-                deleted : false
+                notifyBeforeSending,
+                messageSent: false,
+                deleted: false
             };
             console.log(data);
             const currentSchedulerMessages = await ChromeUtils.getSchedulerMessages();
@@ -727,7 +727,7 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
             ChromeUtils.updateSchedulerMessages(updatedSchedulerMessages).then(r => {
                 console.log(r)
             });
-            await setTimeOutForMessage(id,chatName,elapsedTime,notifyBeforeSending);
+            await setTimeOutForMessage(id, chatName, elapsedTime, notifyBeforeSending);
             resolve(true);
         } catch (error) {
             console.log(error)
@@ -738,17 +738,19 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
 
 async function checkForUserTyping(seconds) {
     let userIsTyping = false;
-    let initialTexts = await  getAllTexts().then(result =>  result.sort());
+    let initialTexts = await getAllTexts().then(result => result.sort());
     return new Promise(resolve => {
         const typeCheckingInterval = setInterval(() => {
             seconds--;
             if (seconds <= 0 || userIsTyping) {
                 clearInterval(typeCheckingInterval);
                 resolve(userIsTyping);
-            }else {
+            } else {
                 getAllTexts().then(currentTexts => {
                     let equals = GeneralUtils.areArrayEqual(currentTexts.sort(), initialTexts);
-                    if (!equals) {userIsTyping = true;}
+                    if (!equals) {
+                        userIsTyping = true;
+                    }
                 });
             }
         }, Globals.SECOND);
@@ -767,32 +769,31 @@ async function checkForUserTyping(seconds) {
 }
 
 
-function setTimeOutForMessage(id , chatName , elapsedTime , notifyBeforeSending) {
-        if (notifyBeforeSending){
-            activeMessagesTimeout[id] = setTimeout(async () => {
-                let userIsTyping = await checkForUserTyping(Globals.USER_TYPING_WARNING_TIME)
-                if (userIsTyping){
-                    showUserTypingAlert(Globals.USER_TYPING_WARNING_TIME * Globals.SECOND , chatName)
-                    await GeneralUtils.sleep(Globals.USER_TYPING_WARNING_TIME)
-                }
-                startMessageSending(id)
-            } , elapsedTime - (Globals.USER_TYPING_WARNING_TIME * Globals.SECOND))
-        }else {
-            activeMessagesTimeout[id] = setTimeout(()=>{
-                startMessageSending(id)
-            } , elapsedTime)
-        }
+function setTimeOutForMessage(id, chatName, elapsedTime, notifyBeforeSending) {
+    if (notifyBeforeSending) {
+        activeMessagesTimeout[id] = setTimeout(async () => {
+            let userIsTyping = await checkForUserTyping(Globals.USER_TYPING_WARNING_TIME)
+            if (userIsTyping) {
+                showUserTypingAlert(Globals.USER_TYPING_WARNING_TIME * Globals.SECOND, chatName)
+                await GeneralUtils.sleep(Globals.USER_TYPING_WARNING_TIME)
+            }
+            startMessageSending(id)
+        }, elapsedTime - (Globals.USER_TYPING_WARNING_TIME * Globals.SECOND))
+    } else {
+        activeMessagesTimeout[id] = setTimeout(() => {
+            startMessageSending(id)
+        }, elapsedTime)
+    }
 
 }
 
 function startMessageSending(id) {
-    sendMessage(id).then((result)=>{
-        console.log("send message function done , result: " +result );
+    sendMessage(id).then((result) => {
+        console.log("send message function done , result: " + result);
         delete activeMessagesTimeout[id]
         console.log(activeMessagesTimeout)
     })
 }
-
 
 
 function waitForNode(parentNode, selector) {
@@ -847,21 +848,9 @@ function addSelectOptions(selector, selectorName) {
     }
 }
 
-// function openSchedulerModal() {
-//     schedulerModal.style.display = "block";
-//     modalBackdrop.style.display = "block";
-//     let currentDate = new Date();
-//     dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
-//     hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
-//     minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
-//     let textInput  = document.querySelectorAll('[class*="text-input"]')[1];
-//     console.log(chatInputPlaceholder)
-//     if (textInput.textContent !== chatInputPlaceholder){
-//         messageSchedulerModal.value = textInput.textContent
-//     }
-// }
 
-function showUserTypingAlert(timer,contactName) {
+
+function showUserTypingAlert(timer, contactName) {
     let timerInterval
     Swal.fire({
         title: ` ${translation.scheduledMessageTo} ${contactName}`,
@@ -872,7 +861,7 @@ function showUserTypingAlert(timer,contactName) {
             //Swal.showLoading()
             const b = Swal.getHtmlContainer().querySelector('b')
             timerInterval = setInterval(() => {
-                b.textContent = Math.ceil(Swal.getTimerLeft()/1000).toString()
+                b.textContent = Math.ceil(Swal.getTimerLeft() / 1000).toString()
             }, 1000)
         },
         willClose: () => {
@@ -894,8 +883,6 @@ const showErrorMessage = (message) => {
 }
 
 
-
-
 const showSentMessagesPopup = (unSentMessages) => {
     const container = document.createElement("div");
     container.className = "un-sent-container";
@@ -904,10 +891,10 @@ const showSentMessagesPopup = (unSentMessages) => {
     headline.style.fontWeight = "600";
     headline.style.fontSize = "0.8em"
     container.appendChild(headline);
-    unSentMessages.forEach((item,index)=> {
+    unSentMessages.forEach((item, index) => {
         let divItem = document.createElement('div')
         divItem.className = "un-sent-message";
-        divItem.innerText = `${index+1}) ${item.chatTitleElement.chatName} (${item.message})`
+        divItem.innerText = `${index + 1}) ${item.chatTitleElement.chatName} (${item.message})`
         divItem.style.marginTop = "0.8em"
         container.appendChild(divItem)
     })
@@ -917,20 +904,21 @@ const showSentMessagesPopup = (unSentMessages) => {
         icon: 'info',
         reverseButtons: true,
         showCancelButton: true,
-        confirmButtonText: translation.confirmSending ,
-        cancelButtonText : translation.confirmCancel
+        confirmButtonText: translation.confirmSending,
+        cancelButtonText: translation.confirmCancel
     }).then((result) => {
         if (result.isConfirmed) {
-            unSentMessages.forEach(item=>{
-                sendMessage(item.id).then(()=>{
+            unSentMessages.forEach(item => {
+                sendMessage(item.id).then(() => {
                     console.log("message has been sent number: " + item.id)
                 })
             })
         }
-        if (result.isDismissed){
-            unSentMessages.forEach(item=>{
+        if (result.isDismissed) {
+            unSentMessages.forEach(item => {
                 item.deleted = true;
-                ChromeUtils.updateItem(item).then(r => {})
+                ChromeUtils.updateItem(item).then(r => {
+                })
             })
         }
     });
