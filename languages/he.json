@@ -5,14 +5,19 @@
   "exportToExcel" : "יצא לאקסל" ,
   "participantsFromAllGroups" : "משתתפים מכל הקבוצות הקיימות",
   "participantsFromSelectedGroups" : "משתתפים לפי בחירה מקבוצות",
-  "allWhatsAppContacts" : "אנשי הקשר מהווטסאפ",
+  "contacts" : "אנשי הקשר",
   "phonesFromAllGroups" : "טלפונים מכל הקבוצות",
   "deleteMessage" : "מחיקת הודעה" ,
+  "messageContent" : "תוכן ההודעה",
   "sureAboutDeleteMessage": "האם אתה בטוח שתרצה למחוק הודעה זו?",
+  "deleteText" : "מחק",
+  "edit" : "ערוך",
   "confirmCancel" : "בטל" ,
   "confirmDelete" : "כן, מחק",
   "confirmSending" : "כן, שלח",
-  "deletedSuccessfullyMessage": "ההודעה נמחקה בהצלחה",
+  "approve": "אישור",
+  "messageDeletedSuccessfully": "ההודעה נמחקה בהצלחה",
+  "messageSavedSuccessfully" : "ההודעה נשמרה בהצלחה",
   "arentScheduledMessages" : "אין הודעות מתוזמנות" ,
   "scheduleMessage" : "תזמון הודעה" ,
   "scheduledMessageTo" : "תזמון הודעה ל" ,
@@ -20,7 +25,10 @@
   "unSentMessage" : "ההודעות הבאות לא נשלחו האם את/ה מעוניינ/ת לשלוח את ההודעות?",
   "unSavedContacts" : "אנשי קשר לא שמורים",
   "savedContacts" : "אנשי קשר שמורים",
+  "savedAndUnSavedContacts": "אנשי קשר שמורים + לא שמורים",
   "phoneNumber" : "מספר טלפון" ,
   "contactName" : "שם איש קשר" ,
-  "whatsappUsername" : "שם משתמש בווטסאפ"
+  "whatsappUsername" : "שם משתמש בווטסאפ",
+  "chooseFromFollowingOptions" : "בחר אחת מהאפשרויות הבאות"
+
 }

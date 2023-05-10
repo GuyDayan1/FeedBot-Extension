@@ -1,0 +1,76 @@
+#message{
+    width: 26em;
+    height: 9.375em;
+}
+
+
+.time-container {
+    display: flex;
+    justify-content: space-between;
+}
+
+
+.scheduler-time-container{
+    display: flex;
+    margin-top: 0.5em;
+}
+
+.date-container,
+.hour-container,
+.minute-container {
+    width: -webkit-fill-available;
+    padding: 0.5em;
+}
+
+#hour,#minute,#datepicker{
+    height: 42px;
+}
+#hour,#minute:hover{
+    cursor: pointer;
+}
+
+.hour-container label,
+.minute-container label,
+.date-container label {
+    display: block;
+    text-align: right;
+    margin-bottom: 2px;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 700;
+    margin-right: 5px;
+}
+
+.hour-container select,
+.minute-container select,
+.date-container input[type=date] {
+    width: 100%;
+    font-size: 1em;
+    box-sizing: border-box;
+    padding: 0.5em;
+    font-family: 'Roboto', sans-serif;
+    font-weight: 400;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+    transition: border-color 0.2s ease-in-out;
+}
+
+
+
+
+.hour-container select:focus,
+.minute-container select:focus,
+.date-container input[type=date]:focus ,
+#message:focus{
+    outline: none;
+    border-color: var(--primary-border-color);
+}
+
+#cancel-scheduler-modal-button{
+    margin-left: 0.5em;
+}
+
+
+
+
+
+

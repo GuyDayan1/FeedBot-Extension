@@ -1,3 +1,5 @@
+
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     let currentURL = tab.url
     let status = tab.status
@@ -5,7 +7,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         chrome.tabs.sendMessage(tabId, "complete");
     }
 });
-
 
 
 

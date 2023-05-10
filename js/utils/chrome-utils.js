@@ -66,3 +66,19 @@ export const schedulingTimeAlreadyExist = (schedulerMessages) => {
     return GeneralUtils.containsDuplicates(scheduledTimes);
 }
 
+function getHtmlFile(modalName) {
+    let containerName = "fb-modal-container";
+    return new Promise((async resolve => {
+        let htmlUrl = chrome.runtime.getURL(`html/${modalName}.html`);
+        await fetch(htmlUrl)
+            .then((response) => {
+                return response.text();
+            })
+            .then((html) => {
+                let modalContainer = document.createElement("div");
+                modalContainer.className = containerName.toString();
+                modalContainer.innerHTML = html;
+                resolve(modalContainer)
+            });
+    }))
+}

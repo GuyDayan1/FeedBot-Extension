@@ -1,0 +1,39 @@
+#contacts-modal {
+    width: 33%;
+}
+
+#contacts-modal-exit {
+    border: none;
+    background-color: transparent;
+    font-size: 20px;
+    cursor: pointer;
+}
+
+#contacts-modal-body {
+    padding: 0.5em;
+    margin: 0.25em 0 0 0;
+}
+
+#export-to-excel-button{
+    margin-left: 0.1em;
+    margin-right: 0.25em;
+    background-color: var(--excel-button-color);
+    color: white;
+    font-weight: 300;
+    border: none;
+    border-radius: 20px; /* adjust the value to make the border more or less circular */
+    padding: 0.5em 1em;
+}
+
+#export-to-excel-button:hover{
+    background-color: var(--excel-button-color-hover);
+    cursor: pointer;
+}
+
+.contacts-row{
+    margin: 1em 0 0 0;
+}
+.contacts-row:hover{
+    cursor: pointer;
+}
+

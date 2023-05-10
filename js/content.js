@@ -2,16 +2,13 @@ import * as ChromeUtils from "./utils/chrome-utils";
 import * as GeneralUtils from "./utils/general-utils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
-import * as SwalUtils from './utils/swal-utils'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
-import {getScheduleMessageById} from "./utils/chrome-utils";
 
 
 let headerElement;
 let cellFrameElement;
 let connected = false;
-let schedulerMessagesDisplay = false;
 let completeStatusCounter = 0;
 let currentChatDetails = {type: "", media: "", chatId: ""}
 let feedBotIcon;
@@ -44,11 +41,13 @@ chrome.runtime.onMessage.addListener((message, sender, response) => {
 });
 
 
+
 const loadExtension = async () => {
     await addFeedBotIcon();
     await initMessagesTimeOut();
     await chatListener();
 };
+
 
 
 async function initTranslations() {
@@ -101,7 +100,7 @@ function addFeedBotIcon() {
             }
 
             feedBotListOptions.push(translation.scheduledMessages, translation.exportToExcel)
-            excelFeaturesListOptions.push(translation.allWhatsAppContacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
+            excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
             //ChromeUtils.clearStorage()
         }
 
@@ -110,73 +109,9 @@ function addFeedBotIcon() {
 }
 
 
-function getHtmlFile() {
-    return new Promise((async resolve => {
-        let htmlUrl = chrome.runtime.getURL("html/schedulerModal.html");
-        await fetch(htmlUrl)
-            .then((response) => {
-                return response.text();
-            })
-            .then((html) => {
-                let modalContainer = document.createElement("div");
-                modalContainer.className = "scheduler-modal-container";
-                modalContainer.innerHTML = html;
-                resolve(modalContainer)
-            });
-    }))
-}
 
-async function openSchedulerModal(data) {
-    let modalContainer = await getHtmlFile();
-    let dateInputSchedulerModal = modalContainer.querySelector('#datepicker')
-    let closeSchedulerModal = modalContainer.querySelector("#close-modal");
-    let cancelSchedulerModalButton = modalContainer.querySelector("#cancel-modal-button");
-    let hourSelectorSchedulerModal = modalContainer.querySelector("#hour");
-    let minuteSelectorSchedulerModal = modalContainer.querySelector("#minute");
-    let sendButtonSchedulerModal = modalContainer.querySelector("#send-button");
-    let messageSchedulerModal = modalContainer.querySelector('#message')
-    addSelectOptions(hourSelectorSchedulerModal, "hour")
-    addSelectOptions(minuteSelectorSchedulerModal, "minute")
-    closeSchedulerModal.addEventListener('click', () => {clearSchedulerModal();})
-    cancelSchedulerModalButton.addEventListener('click', () => {clearSchedulerModal()})
-    if (data.type === Globals.NEW_MESSAGE) {
-        let currentDate = new Date();
-        dateInputSchedulerModal.value = currentDate.toISOString().slice(0, 10);
-        hourSelectorSchedulerModal.selectedIndex = currentDate.getHours();
-        minuteSelectorSchedulerModal.selectedIndex = currentDate.getMinutes()
-        let textInput = document.querySelectorAll('[class*="text-input"]')[1];
-        if (textInput.textContent !== chatInputPlaceholder) {
-            messageSchedulerModal.value = textInput.textContent
-        }
-    }
-    if (data.type === Globals.EDIT_MESSAGE){
-        const item = await getScheduleMessageById(data.itemId)
-        dateInputSchedulerModal.value = item.scheduledTime.toISOString().slice(0, 10);
-        hourSelectorSchedulerModal.selectedIndex = item.scheduledTime.getHours();
-        minuteSelectorSchedulerModal.selectedIndex = item.scheduledTime.getMinutes()
-        messageSchedulerModal.value = item.message;
-    }
-    sendButtonSchedulerModal.addEventListener("click", async () => {
-        await handleSendButtonClick(data)
-    });
 
-    let modalContainerExist = document.getElementsByClassName('scheduler-modal-container')[0];
-    if (!modalContainerExist) {
-        addModalToDOM(modalContainer);
-    }
-}
 
-function addModalToDOM(modal) {
-    modalBackdrop = document.createElement('div');
-    modalBackdrop.className = "modal-backdrop";
-    document.body.appendChild(modal)
-    document.body.appendChild(modalBackdrop)
-}
-
-function clearSchedulerModal() {
-    document.getElementsByClassName('scheduler-modal-container')[0].remove()
-    document.getElementsByClassName('modal-backdrop')[0].remove()
-}
 
 async function initMessagesTimeOut() {
     waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(async () => {
@@ -201,7 +136,7 @@ async function initMessagesTimeOut() {
             let currentMessage = relevantMessages[i];
             console.log("set time out to message number: " + currentMessage.id)
             const elapsedTime = currentMessage.scheduledTime - Date.now();
-            await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.notifyBeforeSending);
+            await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.warnBeforeSending);
         }
         if (unSentMessages.length > 0) {
             showSentMessagesPopup(unSentMessages)
@@ -219,7 +154,6 @@ function chatListener() {
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
                         if (!clockIcon) {
-                            console.log("add clock")
                             addSchedulerButton()
                         }
                     })
@@ -261,7 +195,6 @@ async function removeFeedBotFeatures() {
 }
 
 async function addFeedBotFeatures() {
-    console.log("Here")
     const feedBotListFeatures = document.createElement("ul");
     feedBotListFeatures.className = "fb-features-dropdown";
     for (let i = 0; i < feedBotListOptions.length; i++) {
@@ -306,8 +239,8 @@ async function addFeedBotFeatures() {
                         case translation.participantsFromSelectedGroups:
                             excelListItem.addEventListener("click", getSelectedGroupsParticipants)
                             break;
-                        case translation.allWhatsAppContacts:
-                            excelListItem.addEventListener("click", getAllWhatsAppContacts)
+                        case translation.contacts:
+                            excelListItem.addEventListener("click", showContactsModal)
                             break;
                     }
                 }
@@ -336,41 +269,56 @@ const enterGroupChatByName = async (groupName) => {
 
 async function getSelectedGroupsParticipants() {
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
-
-
+    await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB, 'chat').then((response) => {
+        const test = (response.result)
+        console.log(test)
+    })
 }
 
-async function getAllWhatsAppContacts() {
-
+async function exportContactsToExcel(selectedOption) {
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
-    //not saved on my phone
-    await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 0).then((response) => {
-        const result = response.result;
-        const unSavedContacts = result.map(item => {
-            const phoneNumber = item.id.split('@')[0];
-            const pushName = item.pushname || ''
-            return {phone: phoneNumber, name: pushName};
-        })
-        const headers = [translation.phoneNumber, translation.contactName]
-        ExcelUtils.exportToExcel(unSavedContacts, translation.unSavedContacts, headers)
-    })
-    //saved on my phone
-    await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 1).then((response) => {
-        const result = response.result;
-        const savedContacts = result.map(item => {
-            const phoneNumber = item.id.split('@')[0];
-            const phoneBookContactName = item.name || '';
-            const whatsappUserName = item.pushname || '';
-            return {phoneNumber, phoneBookContactName, whatsappUserName}
-        })
-        const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
-        ExcelUtils.exportToExcel(savedContacts, translation.savedContacts, headers)
+    switch (selectedOption){
+        case Globals.SAVED_PARAM :
+            await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 1).then((response) => {
+                const result = response.result;
+                const savedContacts = result.map(item => {
+                    const phoneNumber = item.id.split('@')[0];
+                    const phoneBookContactName = item.name || '';
+                    const whatsappUserName = item.pushname || '';
+                    return {phoneNumber, phoneBookContactName, whatsappUserName}
+                })
+                const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
+                ExcelUtils.exportToExcel(savedContacts, translation.savedContacts, headers)
 
-    })
-    // all
-    await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
-        const result = response.result;
-    })
+            })
+            break;
+        case Globals.UN_SAVED_PARAM:
+            await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 0).then((response) => {
+                const result = response.result;
+                const unSavedContacts = result.map(item => {
+                    const phoneNumber = item.id.split('@')[0];
+                    const pushName = item.pushname || ''
+                    return {phone: phoneNumber, name: pushName};
+                })
+                const headers = [translation.phoneNumber, translation.contactName]
+                ExcelUtils.exportToExcel(unSavedContacts, translation.unSavedContacts, headers)
+            })
+            break;
+        case Globals.ALL_PARAM:
+            await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
+                const result = response.result;
+                const both = result.map(item => {
+                    const phoneNumber = item.id.split('@')[0];
+                    const phoneBookContactName = item.name || '';
+                    const whatsappUserName = item.pushname || '';
+                    return {phoneNumber, phoneBookContactName, whatsappUserName}
+                })
+                const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
+                ExcelUtils.exportToExcel(both, translation.savedAndUnSavedContacts, headers)
+            })
+
+    }
+
 }
 
 async function getAllGroupsParticipants() {
@@ -399,6 +347,15 @@ async function getAllGroupsParticipants() {
     // })
 }
 
+function refreshScheduledMessagesList() {
+    let schedulerMessages = document.getElementsByClassName('scheduler-messages-container')[0]
+    if (schedulerMessages){
+        schedulerMessages.remove()
+        showScheduledMessages().then(r => ()=>{
+            console.log("done reset messages")
+        })
+    }
+}
 
 async function showScheduledMessages() {
     let schedulerMessagesExist = document.getElementsByClassName('scheduler-messages-container')[0]
@@ -411,7 +368,7 @@ async function showScheduledMessages() {
         backToChatList.innerText = translation.backToChat
         const messagesList = document.createElement("div");
         messagesList.className = "messages-list";
-        GeneralUtils.addScrollingAbility(messagesList)
+        GeneralUtils.addScrollingAbility(messagesList,"432px")
         backToChatList.addEventListener('click', () => {
             schedulerListContainer.remove()
             paneSideElement.style.display = "flex";
@@ -482,8 +439,8 @@ async function showScheduledMessages() {
                     iconPlaceElement.removeChild(currentFirstChild);
                     // add cancel button
                     const deleteMessageButton = document.createElement('button')
-                    deleteMessageButton.textContent = "מחק"
-                    deleteMessageButton.className = "custom-cancel-button"
+                    deleteMessageButton.textContent = translation.deleteText
+                    deleteMessageButton.className = "fb-custom-cancel-button"
                     deleteMessageButton.setAttribute("key", item.id)
                     deleteMessageButton.addEventListener('click', (e) => {
                         Swal.fire({
@@ -496,26 +453,21 @@ async function showScheduledMessages() {
                             cancelButtonColor: '#d33',
                             cancelButtonText: translation.confirmCancel,
                             confirmButtonText: translation.confirmDelete,
-                            customClass: {
-                                confirmButton: 'custom-confirm-button-sa',
-                                cancelButton: 'custom-cancel-button-sa'
-                            }
                         }).then((result) => {
                             if (result.isConfirmed) {
                                 item.deleted = true;
                                 ChromeUtils.updateItem(item)
                                 clearTimeOutItem(item.id)
-                                SwalUtils.showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.deletedSuccessfullyMessage)
+                                showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully)
                             }
 
                         })
                     })
                     const editMessageButton = document.createElement('button')
-                    editMessageButton.textContent = "ערוך"
+                    editMessageButton.textContent = translation.edit
                     editMessageButton.className = "custom-edit-button"
                     editMessageButton.addEventListener('click', async () => {
-                        await openSchedulerModal({type:Globals.EDIT_MESSAGE , itemId :item.id})
-
+                        await showSchedulerModal({type:Globals.EDIT_MESSAGE , itemId :item.id})
                     })
                     //editMessageButton.setAttribute("key", item.id)
                     iconPlaceElement.insertBefore(deleteMessageButton, iconPlaceElement.firstChild);
@@ -566,7 +518,7 @@ async function addSchedulerButton() {
         });
         clockIcon.addEventListener('click', () => {
             clockIcon.disabled = true
-            openSchedulerModal({type:Globals.NEW_MESSAGE});
+            showSchedulerModal({type:Globals.NEW_MESSAGE})
         });
 
     }
@@ -575,28 +527,14 @@ async function addSchedulerButton() {
 }
 
 
-async function handleSendButtonClick(data) {
-    let scheduleMessageWarning = {show: false, warningMessage: Globals.MESSAGE_MISSING_TEXT};
-    const schedulerModal = document.getElementsByClassName('scheduler-modal-container')[0];
-    let message = schedulerModal.querySelector('#message').value.trim();
-    const date = schedulerModal.querySelector('#datepicker').value;
-    const hour = schedulerModal.querySelector('#hour').value;
-    let minute = schedulerModal.querySelector('#minute').value;
-    if (minute < 10) {minute = "0" + minute;}
-    const dateTimeStr = date + " " + hour + ":" + minute;
-    let scheduledTime = (new Date(dateTimeStr)).getTime();
-    if (scheduledTime <= Date.now()) {scheduledTime = new Date().getTime()}
-    if (message.length === 0) {
-        scheduleMessageWarning.show = true;
-    }
-    await clearSchedulerModal();
-    if (!scheduleMessageWarning.show) {
-        if (data.type === Globals.NEW_MESSAGE) {
+async function handleConfirmButtonClick(messageData) {
+    if (!messageData.scheduleMessageWarning.show) {
+        if (messageData.messageType === Globals.NEW_MESSAGE) {
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
-                // const id = schedulerMessages.length > 0 ? (schedulerMessages[schedulerMessages.length - 1].id) + 1 : 0;
                 const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
                 console.log("new message id is: " + id)
-                saveNewMessage(id, message, scheduledTime, dateTimeStr).then((result) => {
+                saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
+                    showToastMessage('bottom-end', 5 * Globals.SECOND, false, translation.messageSavedSuccessfully)
                 }).catch((error) => {
                     console.log(error)
                 })
@@ -604,22 +542,21 @@ async function handleSendButtonClick(data) {
                 console.log(onerror.message)
             })
         }
-        if (data.type === Globals.EDIT_MESSAGE) {
-            ChromeUtils.getScheduleMessageById(data.itemId).then(result => {
+        if (messageData.messageType === Globals.EDIT_MESSAGE) {
+            ChromeUtils.getScheduleMessageById(messageData.itemId).then(result => {
                 let updatedItem = result;
-                updatedItem.message = message;
-                updatedItem.scheduledTime = scheduledTime;
-                updatedItem.dateTimeStr = dateTimeStr;
+                updatedItem.message = messageData.messageText;
+                updatedItem.scheduledTime = messageData.scheduledTime;
+                updatedItem.dateTimeStr = messageData.dateTimeStr;
                 ChromeUtils.updateItem(updatedItem).then(r => {
-                    console.log(r)
                     initMessagesTimeOut()
-                    // TODO : change text message
+                    refreshScheduledMessagesList()
                 })
             })
         }
     }
     else {
-        showErrorMessage(scheduleMessageWarning.warningMessage)
+        showErrorMessage(messageData.scheduleMessageWarning.warningMessage)
     }
 
 }
@@ -686,7 +623,7 @@ const sendMessage = async (id) => {
 
 }
 
-async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
+async function saveMessage(id, message, scheduledTime, dateTimeStr) {
     return new Promise(async (resolve, reject) => {
         try {
             const conversationHeaderElement = document.querySelector('header[data-testid="conversation-header"]');
@@ -706,7 +643,7 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
             let chatTitleElement = {chatName, emojiAttr}
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src;
             const elapsedTime = scheduledTime - Date.now();
-            const notifyBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
+            const warnBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
             const data = {
                 id,
                 message,
@@ -717,7 +654,7 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
                 imageUrl,
                 chatTitleElement,
                 dateTimeStr,
-                notifyBeforeSending,
+                warnBeforeSending,
                 messageSent: false,
                 deleted: false
             };
@@ -727,7 +664,7 @@ async function saveNewMessage(id, message, scheduledTime, dateTimeStr) {
             ChromeUtils.updateSchedulerMessages(updatedSchedulerMessages).then(r => {
                 console.log(r)
             });
-            await setTimeOutForMessage(id, chatName, elapsedTime, notifyBeforeSending);
+            await setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending);
             resolve(true);
         } catch (error) {
             console.log(error)
@@ -769,8 +706,8 @@ async function checkForUserTyping(seconds) {
 }
 
 
-function setTimeOutForMessage(id, chatName, elapsedTime, notifyBeforeSending) {
-    if (notifyBeforeSending) {
+function setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending) {
+    if (warnBeforeSending) {
         activeMessagesTimeout[id] = setTimeout(async () => {
             let userIsTyping = await checkForUserTyping(Globals.USER_TYPING_WARNING_TIME)
             if (userIsTyping) {
@@ -887,7 +824,7 @@ const showSentMessagesPopup = (unSentMessages) => {
     const container = document.createElement("div");
     container.className = "un-sent-container";
     const headline = document.createElement("div");
-    headline.innerText = translation.unSendingMessage;
+    headline.innerText = translation.unSentMessage;
     headline.style.fontWeight = "600";
     headline.style.fontSize = "0.8em"
     container.appendChild(headline);
@@ -905,7 +842,9 @@ const showSentMessagesPopup = (unSentMessages) => {
         reverseButtons: true,
         showCancelButton: true,
         confirmButtonText: translation.confirmSending,
-        cancelButtonText: translation.confirmCancel
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33'
     }).then((result) => {
         if (result.isConfirmed) {
             unSentMessages.forEach(item => {
@@ -925,29 +864,222 @@ const showSentMessagesPopup = (unSentMessages) => {
 
 }
 
+const showSchedulerModal = async (data) => {
+    const container = document.createElement("div");
+    container.className = "scheduler-modal-container";
+    const messageTextArea = document.createElement("textarea");
+    messageTextArea.id = "message"
+    messageTextArea.className = "fb-textarea";
+    messageTextArea.placeholder = translation.messageContent
+    const schedulerTimeContainer = document.createElement('div');
+    schedulerTimeContainer.className = 'scheduler-time-container';
+    const minuteContainer = document.createElement('div');
+    minuteContainer.className = 'minute-container';
+    const minuteLabel = document.createElement('label');
+    minuteLabel.htmlFor = 'minute';
+    minuteLabel.textContent = 'דקה';
+    const minuteDropdown = document.createElement('select');
+    minuteDropdown.name = 'minutePicker';
+    minuteDropdown.id = 'minute';
+    minuteDropdown.className = 'custom-dropdown';
+    minuteContainer.appendChild(minuteLabel);
+    minuteContainer.appendChild(minuteDropdown);
+    const hourContainer = document.createElement('div');
+    hourContainer.className = 'hour-container';
+    const hourLabel = document.createElement('label');
+    hourLabel.htmlFor = 'hour';
+    hourLabel.textContent = 'שעה';
+    const hourDropdown = document.createElement('select');
+    hourDropdown.name = 'hourPicker';
+    hourDropdown.id = 'hour';
+    hourDropdown.className = 'custom-dropdown';
+    hourContainer.appendChild(hourLabel);
+    hourContainer.appendChild(hourDropdown);
+    const dateContainer = document.createElement('div');
+    dateContainer.className = 'date-container';
+    const dateLabel = document.createElement('label');
+    dateLabel.htmlFor = 'datepicker';
+    dateLabel.textContent = 'תאריך';
+    const dateInput = document.createElement('input');
+    dateInput.type = 'date';
+    dateInput.name = 'datePicker';
+    dateInput.id = 'datepicker';
+    dateInput.className = 'custom-date-input';
+    dateContainer.appendChild(dateLabel);
+    dateContainer.appendChild(dateInput);
+    schedulerTimeContainer.appendChild(minuteContainer);
+    schedulerTimeContainer.appendChild(hourContainer);
+    schedulerTimeContainer.appendChild(dateContainer);
+    addSelectOptions(hourDropdown, "hour")
+    addSelectOptions(minuteDropdown, "minute")
+    if (data.type === Globals.NEW_MESSAGE) {
+        let currentDate = new Date();
+        dateInput.value = currentDate.toISOString().slice(0, 10);
+        hourDropdown.selectedIndex = currentDate.getHours();
+        minuteDropdown.selectedIndex = currentDate.getMinutes()
+        let textInput = document.querySelectorAll('[class*="text-input"]')[1];
+        if (textInput.textContent !== chatInputPlaceholder) {
+            messageTextArea.value = textInput.textContent
+        }
+    }
+    if (data.type === Globals.EDIT_MESSAGE) {
+        const item = await ChromeUtils.getScheduleMessageById(data.itemId)
+        let date = new Date(item.scheduledTime)
+        dateInput.value = date.toISOString().slice(0, 10);
+        hourDropdown.selectedIndex = date.getHours();
+        minuteDropdown.selectedIndex = date.getMinutes()
+        messageTextArea.value = item.message;
+    }
+    container.appendChild(messageTextArea)
+    container.appendChild(schedulerTimeContainer)
+    Swal.fire({
+        title: translation.scheduleMessage,
+        html: container,
+        showCancelButton: true,
+        showCloseButton: true,
+        reverseButtons: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonText: translation.approve,
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            let scheduleMessageWarning = {show: false, warningMessage: Globals.MESSAGE_MISSING_TEXT};
+            let messageText = messageTextArea.value.trim();
+            if (messageText.length === 0) {scheduleMessageWarning.show = true;}
+            let date = dateInput.value;
+            let hour = hourDropdown.value;
+            let minute = minuteDropdown.value;
+            if (minute < 10) {minute = "0" + minute;}
+            const dateTimeStr = date + " " + hour + ":" + minute;
+            let scheduledTime = (new Date(dateTimeStr)).getTime();
+            if (scheduledTime <= Date.now()) {scheduledTime = new Date().getTime()}
+            let messageData
+            if (data.type === Globals.NEW_MESSAGE){
+                messageData = {messageType:Globals.NEW_MESSAGE,scheduleMessageWarning,messageText,dateTimeStr,scheduledTime}
+            }
+            if (data.type === Globals.EDIT_MESSAGE){
+                messageData = {messageType:Globals.EDIT_MESSAGE,itemId:data.itemId,scheduleMessageWarning,messageText,dateTimeStr,scheduledTime}
+            }
+            await handleConfirmButtonClick(messageData)
+        }
+    })
+}
 
-/// scrolling chat list
-// let foundElement = false;
-// let listItems
-// const scrollerContainer = document.getElementById('pane-side');
-// //scroll the top of the pane side
-// const chatListElement = scrollerContainer.querySelector('div[data-testid="chat-list"]');
-// const chatListContainer = chatListElement.childNodes[0];
-// while (!foundElement) {
-//     listItems = chatListContainer.childNodes;
-//     const scrollValue = scrollerContainer.offsetHeight;
-//     listItems.forEach((item) => {
-//         const chatTile = item.querySelector('div[data-testid="cell-frame-title"]').firstElementChild.firstElementChild;
-//         const chatName = chatTile.getAttribute('title');
-//         console.log(chatName)
-//         if (chatName === groupName) {
-//             item.scrollIntoView();
-//             foundElement = true;
+const showContactsModal = () => {
+    const container = document.createElement("div");
+    container.className = "contacts-modal-container";
+    const contactsBody = document.createElement("div")
+    contactsBody.className = "contacts-body";
+    const fieldset = document.createElement('fieldset');
+    const legend = document.createElement('legend');
+    legend.textContent = translation.chooseFromFollowingOptions;
+    fieldset.appendChild(legend);
+    const contactsOptions = [Globals.SAVED_PARAM, Globals.UN_SAVED_PARAM, Globals.ALL_PARAM];
+    contactsOptions.forEach((option) => {
+        const div = document.createElement('div');
+        div.classList.add('contacts-row');
+        const label = document.createElement('label');
+        label.classList.add('fb-label');
+        const input = document.createElement('input');
+        input.classList.add('fb-radio-button');
+        input.type = 'radio';
+        input.name = 'contacts';
+        input.value = option;
+        label.appendChild(input);
+        let text;
+        if (option === Globals.SAVED_PARAM){text = translation.savedContacts}
+        if (option === Globals.UN_SAVED_PARAM){text = translation.unSavedContacts}
+        if (option === Globals.ALL_PARAM){text = translation.savedAndUnSavedContacts}
+        label.appendChild(document.createTextNode(text))
+        div.appendChild(label);
+        fieldset.appendChild(div);
+    });
+    contactsBody.appendChild(fieldset)
+    container.appendChild(contactsBody)
+    Swal.fire({
+        title: translation.contacts,
+        html: container,
+        allowOutsideClick: false,
+        showCancelButton: true,
+        showCloseButton: true,
+        reverseButtons: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonText: translation.approve,
+        preConfirm: () => {
+            const radioButtons = document.getElementsByName('contacts');
+            let selectedOption;
+            for (const radioBtn of radioButtons){
+                if (radioBtn.checked){
+                    selectedOption = radioBtn.value;
+                    break;
+                }
+            }
+            if (selectedOption){
+                console.log('Selected option:', selectedOption);
+                return selectedOption;
+            } else {
+                // Show an error message and prevent modal from closing
+                Swal.showValidationMessage('יש לבחור אחת מהאפשרויות');
+                return false;
+            }
+        }
+    }).then((result) => {
+        if (result.isConfirmed){
+            const selectedOption = result.value;
+            exportContactsToExcel(selectedOption).then(r => ()=>{
+                console.log(selectedOption)
+            })
+        }
+    });
+}
+
+
+
+const showToastMessage =(position,timer,timerProgressBar,title)=>{
+    const Toast = Swal.mixin({
+        toast: true,
+        position: position,
+        showConfirmButton: false,
+        timer: timer,
+        timerProgressBar: timerProgressBar,
+        didOpen: (toast) => {
+            // toast.addEventListener('mouseenter', Swal.stopTimer)
+            // toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    })
+
+    Toast.fire({
+        icon: 'success',
+        title: title
+    })
+}
+
+
+
+
+// async function showContactsOptions() {
+//     const container = document.createElement("div");
+//     container.className = "scheduler-modal-container";
+//     let contactsModalContainer = await getHtmlFile("contactsmodal");
+//     let contactsModalContainerExist = document.getElementsByClassName(contactsModalContainer.className)[0];
+//     if (!contactsModalContainerExist) {addModalToDOM(contactsModalContainer);}
+//     const radioButtons = document.getElementsByName('contacts');
+//     let cancelButton = contactsModalContainer.querySelector('#cancel-contacts-modal-button')
+//     let closeButton = contactsModalContainer.querySelector('#close-contacts-modal-button');
+//     let exportToExcelButton = contactsModalContainer.querySelector('#export-to-excel-button');
+//     closeButton.addEventListener('click', () => {clearModalFromDOM(contactsModalContainer.className);})
+//     cancelButton.addEventListener('click', () => {clearModalFromDOM(contactsModalContainer.className)})
+//     exportToExcelButton.addEventListener('click',()=>{
+//         let selectedOption;
+//         for (const radioBtn of radioButtons){
+//             if (radioBtn.checked){
+//                 selectedOption = radioBtn.value;
+//                 break;
+//             }
 //         }
-//     });
-//     console.log("finish to read list")
-//     if (!foundElement){
-//         scrollerContainer.scrollTop += scrollValue;
-//         await GeneralUtils.sleep(1)
-//     }
+//         console.log("you selected " , selectedOption)
+//     })
 // }

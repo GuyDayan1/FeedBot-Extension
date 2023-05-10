@@ -105,13 +105,21 @@ export function getChatDetails() {
     return {type, media, chatId}
 }
 
-export const addScrollingAbility = (list) => {
-    list.addEventListener('scroll', function() {
-        const isOverflowing = list.scrollHeight > list.clientHeight;
-        if (isOverflowing) {
-            list.style.overflowY = 'scroll';
-        } else {
-            list.style.overflowY = 'auto';
-        }
-    });
+export const addScrollingAbility = (list,maxHeight) => {
+    list.style.height = maxHeight
+    list.style.overflowY = "scroll"
+}
+
+
+function addModalToDOM(modalContainer) {
+    let modalBackdrop = document.createElement('div');
+    modalBackdrop.className = "modal-backdrop";
+    document.body.appendChild(modalContainer)
+    document.body.appendChild(modalBackdrop)
+
+}
+
+function clearModalFromDOM(containerClassName) {
+    document.getElementsByClassName(containerClassName)[0].remove()
+    document.getElementsByClassName('modal-backdrop')[0].remove()
 }

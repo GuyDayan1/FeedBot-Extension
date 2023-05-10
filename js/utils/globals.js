@@ -19,7 +19,10 @@ export const NEW_MESSAGE = "new-message";
 export const EDIT_MESSAGE = "edit-message"
 
 
-//elements
-export const schedulerModalElement = "div[id=schedulerModal]";
+
+export const SAVED_PARAM = "saved";
+export const UN_SAVED_PARAM = "un-saved";
+export const ALL_PARAM = "all";
+
 
 

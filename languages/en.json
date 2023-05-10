@@ -12,7 +12,6 @@
   "confirmCancel" : "Cancel",
   "confirmDelete" : "Yes, delete",
   "confirmSending" : "Yes, send",
-  "deletedSuccessfullyMessage": "Message deleted successfully",
   "arentScheduledMessages" : "There aren't any scheduled messages",
   "scheduleMessage" : "Schedule Message",
   "scheduledMessageTo" : "Schedule message to",
