@@ -16,7 +16,7 @@ let load = false;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
-let client = {state: Globals.UNUSED_STATE, sendingType: "", language: "he"};
+let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
 let chatInputPlaceholder = '';
 let activeMessagesTimeout = {};
 let translation = {}
@@ -207,7 +207,7 @@ async function addFeedBotFeatures() {
         switch (feedBotListOptions[i]) {
             case translation.scheduledMessages:
                 feedBotListItem.addEventListener("click", ()=>{
-                        showScheduledMessages()
+                    showScheduledMessages()
                 })
                 break;
             case translation.exportToExcel:
@@ -1060,26 +1060,3 @@ const showToastMessage =(position,timer,timerProgressBar,title)=>{
 
 
 
-// async function showContactsOptions() {
-//     const container = document.createElement("div");
-//     container.className = "scheduler-modal-container";
-//     let contactsModalContainer = await getHtmlFile("contactsmodal");
-//     let contactsModalContainerExist = document.getElementsByClassName(contactsModalContainer.className)[0];
-//     if (!contactsModalContainerExist) {addModalToDOM(contactsModalContainer);}
-//     const radioButtons = document.getElementsByName('contacts');
-//     let cancelButton = contactsModalContainer.querySelector('#cancel-contacts-modal-button')
-//     let closeButton = contactsModalContainer.querySelector('#close-contacts-modal-button');
-//     let exportToExcelButton = contactsModalContainer.querySelector('#export-to-excel-button');
-//     closeButton.addEventListener('click', () => {clearModalFromDOM(contactsModalContainer.className);})
-//     cancelButton.addEventListener('click', () => {clearModalFromDOM(contactsModalContainer.className)})
-//     exportToExcelButton.addEventListener('click',()=>{
-//         let selectedOption;
-//         for (const radioBtn of radioButtons){
-//             if (radioBtn.checked){
-//                 selectedOption = radioBtn.value;
-//                 break;
-//             }
-//         }
-//         console.log("you selected " , selectedOption)
-//     })
-// }
