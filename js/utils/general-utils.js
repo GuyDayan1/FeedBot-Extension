@@ -24,7 +24,6 @@ export function sleep(seconds) {
 
 export const simulateKeyPress = (type,keyName) => {    //type = which action to do simulate  , keyName = which key to action
     document.dispatchEvent(new KeyboardEvent(type, {'key': keyName}));
-    console.log("try to escape")
 }
 
 export function listFadeIn(element, duration) {

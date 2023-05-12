@@ -150,7 +150,7 @@
     width: max-content;
     position: absolute;
     background-color: #ffffff;
-    box-shadow :0 2px 5px 0 rgb(46 45 45), 0 2px 5px 0 rgb(177 167 169);
+    box-shadow :0 2px 5px 0 rgb(181 165 165), 0 2px 5px 0 rgb(255 255 255);
     color: lightslategray;
     min-width: 160px;
     border-radius: 3px;

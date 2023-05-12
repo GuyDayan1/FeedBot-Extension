@@ -4,6 +4,7 @@ import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
+import {CONTACT_PARAM} from "./utils/globals";
 
 
 let headerElement;
@@ -147,13 +148,13 @@ async function initMessagesTimeOut() {
 
 function chatListener() {
     waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
-        document.body.addEventListener('click', () => {
+        document.body.addEventListener('click', (e) => {
             waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, 3000).then(async (element) => {
                 currentChatDetails = GeneralUtils.getChatDetails();
                 waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, 3000)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
-                        if (!clockIcon) {
+                        if (!clockIcon && currentChatDetails.type === CONTACT_PARAM) {
                             addSchedulerButton()
                         }
                     })
@@ -262,17 +263,19 @@ function createSvgElement(data) {
     return element;
 }
 
-const enterGroupChatByName = async (groupName) => {
-
-
-}
 
 async function getSelectedGroupsParticipants() {
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
-    await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB, 'chat').then((response) => {
-        const test = (response.result)
-        console.log(test)
+   await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB , 'group-metadata').then((response)=>{
+       const result = response.result;
+       const filteredResult = result.filter(item => {
+           if (item.a_v_id != null){
+               return {groupName:item.subject , groupId:item.id}
+           }
+       });
+       showSelectFromGroupsModal(filteredResult)
     })
+
 }
 
 async function exportContactsToExcel(selectedOption) {
@@ -339,9 +342,7 @@ async function getAllGroupsParticipants() {
         const phonesObjects = phones.map(phone => ({phone})); // must convert to object like phone:"972546432705"
         ExcelUtils.exportToExcel(phonesObjects, translation.phonesFromAllGroups)
     })
-    // const IDBRequest1 = await getObjectStoresByKeyFromDB(modelStorageDB , 'group-metadata').then((response)=>{
-    //     console.log(response)
-    // })
+
     // const IDBRequest2 = await getObjectStoresByKeyFromDB(modelStorageDB , 'contact').then((response)=>{
     //     console.log(response)
     // })
@@ -562,6 +563,8 @@ async function handleConfirmButtonClick(messageData) {
 }
 
 
+
+
 const sendMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id)
     if (client.state === Globals.SENDING_STATE) {
@@ -573,7 +576,7 @@ const sendMessage = async (id) => {
         }, 50)
     } else {
         client.state = Globals.SENDING_STATE;
-        return new Promise(((resolve, reject) => {
+        return new Promise((async (resolve, reject) => {
             if (item.type === Globals.CONTACT_PARAM) {
                 console.log("starting to sending message to id: " + id)
                 client.sendingType = Globals.SINGLE_CONTACT_SENDING;
@@ -618,10 +621,34 @@ const sendMessage = async (id) => {
                     }
                 }, 300)
             }
+            if (item.type === Globals.GROUP_PARAM) {
+                await searchingForGroup(item.media)
+            }
         }))
     }
 
 }
+async function searchingForGroup(media) {
+    let side = document.getElementById('pane-side')
+    side.scrollTop -= side.scrollTop /// scroll to top
+
+
+}
+function simulateTyping(inputElement, text) {
+    let index = 0;
+    function typeNextChar() {
+        if (index < text.length) {
+            const char = text.charAt(index);
+            const keyCode = char.charCodeAt(0);
+            const event = new KeyboardEvent('keydown', { keyCode });
+            inputElement.dispatchEvent(event);
+            index++;
+            setTimeout(typeNextChar, 100);
+        }
+    }
+    typeNextChar();
+}
+
 
 async function saveMessage(id, message, scheduledTime, dateTimeStr) {
     return new Promise(async (resolve, reject) => {
@@ -965,7 +992,46 @@ const showSchedulerModal = async (data) => {
         }
     })
 }
+const showSelectFromGroupsModal = (result) => {
+    const container = document.createElement("div");
+    container.className = "groups-modal-container";
+    const contactsBody = document.createElement("div")
+    contactsBody.className = "groups-body";
+    for (let item of result){
+        let div = document.createElement('div')
+        div.className = "checkbox-container";
+        let checkboxInput = document.createElement('input')
+        checkboxInput.type = "checkbox"
+        checkboxInput.id = result.groupId
+        checkboxInput.name  = result.groupName;
+        let checkboxLabel = document.createElement('label')
+        checkboxLabel.setAttribute('for' , result.groupName)
+        checkboxLabel.innerText = result.groupName;
+        div.appendChild(checkboxInput)
+        div.appendChild(checkboxLabel)
+        contactsBody.appendChild(div)
+        container.appendChild(contactsBody)
+    }
+    Swal.fire({
+        title: translation.chooseFromFollowingOptions,
+        html : container,
+        allowOutsideClick: false,
+        showCancelButton: true,
+        showCloseButton: true,
+        reverseButtons: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonText: translation.approve,
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const selectedOptions = result.value;
+            console.log('Selected options:', selectedOptions);
+            // Do something with selected options
+        }
+    });
 
+}
 const showContactsModal = () => {
     const container = document.createElement("div");
     container.className = "contacts-modal-container";
