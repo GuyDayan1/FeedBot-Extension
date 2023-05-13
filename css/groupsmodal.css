@@ -1,0 +1,7 @@
+.groups-body{
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    height: 12em;
+    max-height: 13em;
+}

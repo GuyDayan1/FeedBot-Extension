@@ -29,6 +29,7 @@
   "phoneNumber" : "מספר טלפון" ,
   "contactName" : "שם איש קשר" ,
   "whatsappUsername" : "שם משתמש בווטסאפ",
-  "chooseFromFollowingOptions" : "בחר אחת מהאפשרויות הבאות"
+  "chooseOneFromFollowingOptions" : "בחר אחת מהאפשרויות הבאות",
+  "chooseFromFollowingOptions" : "בחר מהאפשרויות הבאות"
 
 }
