@@ -338,24 +338,24 @@ async function exportParticipantsByGroupIdsToExcel(groupsId){
     const phones = uniqueParticipants.map(chatId => {
         return chatId.toString().split('@')[0]
     })
-    await addContactsNames(phones)
+    let data = await addContactsNames(phones)
+    const headers = [translation.phoneNumber, translation.contactName]
+    ExcelUtils.exportToExcel(data, translation.participantsByGroups, headers)
 }
 
 async function addContactsNames(phones) {
+    let newArray;
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
      await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
          const result = response.result;
-         const newArray = phones.map(phone => {
+          newArray = phones.map(phone => {
              const item = result.find(item => item.id.toString().split('@')[0] === phone);
-             let name;
-             if (item) {
-                 name = item.isAddressBookContact === 1 ? item.name : item.pushname || ''
-             }else {
-                 name = ''
-             }
-             return {phone,name}
+             let name = '';
+             if (item) {name = item.isAddressBookContact === 1 ? item.name : item.pushname || ''}
+             return {phone: phone, name:name}
          });
     })
+    return newArray;
 }
 
 
@@ -1071,15 +1071,29 @@ async function addContactsNames(phones) {
             cancelButtonColor: '#d33',
             cancelButtonText: translation.confirmCancel,
             confirmButtonText: translation.approve,
-        }).then((result) => {
-            if (result.isConfirmed) {
+            preConfirm: () => {
                 const checkboxes = contactsBody.querySelectorAll("input[type=checkbox]");
                 const checkboxesArray = Array.from(checkboxes);
                 const checkedCheckboxes = checkboxesArray.filter(checkbox => checkbox.checked);
                 const checkedValues = checkedCheckboxes.map(checkbox => checkbox.value);
-                exportParticipantsByGroupIdsToExcel(checkedValues)
+                if (checkedValues.length > 0) {
+                    console.log('Selected option:', checkedValues);
+                    return checkedValues;
+                } else {
+                    // Show an error message and prevent modal from closing
+                    Swal.showValidationMessage(translation.mustToChooseAtLeastOneOption);
+                    return false;
+                }
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const groupsId = result.value;
+                exportParticipantsByGroupIdsToExcel(groupsId).then(r => {
+                    console.log("export successfully")
+                })
             }
         });
+
 
     }
     const showContactsModal = () => {

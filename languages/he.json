@@ -30,6 +30,9 @@
   "contactName" : "שם איש קשר" ,
   "whatsappUsername" : "שם משתמש בווטסאפ",
   "chooseOneFromFollowingOptions" : "בחר אחת מהאפשרויות הבאות",
-  "chooseFromFollowingOptions" : "בחר מהאפשרויות הבאות"
+  "chooseFromFollowingOptions" : "בחר מהאפשרויות הבאות",
+  "participantsByGroups" : "משתתפים לפי קבוצות",
+  "mustToChooseOneOption" : "יש לבחור אחת מהאפשרויות",
+  "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות"
 
 }
