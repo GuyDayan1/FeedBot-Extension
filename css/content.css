@@ -251,3 +251,33 @@ li{
     padding: 0.5em 1em;
 }
 
+/* CSS styles for the table */
+
+.fb-table-container{
+    max-height: 9em;
+}
+.fb-table {
+    border-collapse: collapse;
+    width: 100%;
+    font-family: Arial, sans-serif;
+    direction: rtl;
+}
+
+.fb-th, .fb-td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+.fb-th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    text-align: center;
+}
+
+.fb-tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.fb-tr:hover {
+    background-color: #e9e9e9;
+}

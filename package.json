@@ -5,8 +5,8 @@
     "webpack-cli": "^5.1.1"
   },
   "dependencies": {
-    "sweetalert2": "^11.7.5",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.19.2/xlsx-0.19.2.tgz"
+    "papaparse": "^5.4.1",
+    "sweetalert2": "^11.7.5"
   },
   "scripts": {
     "build": "webpack"

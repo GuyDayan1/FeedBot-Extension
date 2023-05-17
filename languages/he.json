@@ -33,6 +33,8 @@
   "chooseFromFollowingOptions" : "בחר מהאפשרויות הבאות",
   "participantsByGroups" : "משתתפים לפי קבוצות",
   "mustToChooseOneOption" : "יש לבחור אחת מהאפשרויות",
-  "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות"
+  "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות",
+  "bulkSending" : "שליחה בתפוצה",
+  "fileMustToBeCSV" : "יש להעלות קובץ מסוג CSV בלבד"
 
 }

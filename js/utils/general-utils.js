@@ -122,3 +122,61 @@ function clearModalFromDOM(containerClassName) {
     document.getElementsByClassName(containerClassName)[0].remove()
     document.getElementsByClassName('modal-backdrop')[0].remove()
 }
+
+export function handleFileSelect(event) {
+    const selectedFile = event.target.files[0];
+    if (selectedFile) {
+        const fileType = selectedFile.type;
+        if (fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || fileType === 'text/csv') {
+            // Valid file type, perform further operations
+            console.log('File is valid:', selectedFile.name);
+            // Add your logic to process the file here
+        } else {
+            // Invalid file type
+            console.log('Invalid file type. Please select a valid XLSX or CSV file.');
+            // You can display an error message to the user or perform other actions
+        }
+    }
+}
+
+export function createTable(headers,data) {
+    const table = document.createElement('table');
+    table.classList.add('fb-table');
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headers.forEach(key => {
+        const th = document.createElement('th');
+        th.textContent = key;
+        th.classList.add('fb-th');
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+    const tbody = document.createElement('tbody');
+    data.forEach((item, index) => {
+        const row = document.createElement('tr');
+        if (index % 2 === 0) {
+            row.classList.add('fb-tr', 'even-row');
+        } else {
+            row.classList.add('fb-tr', 'odd-row');
+        }
+        Object.values(item).forEach(value => {
+            const td = document.createElement('td');
+            td.textContent = value;
+            td.classList.add('fb-td'); // Add the custom cell class
+            row.appendChild(td);
+        });
+        tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    return table;
+}
+
+export const formatPhone = (phone) => {
+    let newPhone = phone.trim();
+    newPhone = newPhone.replace(/\D/g, '');   // replace any char with empty
+    if (newPhone.startsWith('9720')) newPhone = newPhone.slice(3);
+    if (newPhone.startsWith('972')) newPhone = '0' + newPhone.slice(3);
+    if (!newPhone.startsWith('0')) newPhone = '0' + newPhone;
+    return newPhone;
+}
