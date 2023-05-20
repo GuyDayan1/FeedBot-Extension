@@ -35,6 +35,9 @@
   "mustToChooseOneOption" : "יש לבחור אחת מהאפשרויות",
   "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות",
   "bulkSending" : "שליחה בתפוצה",
-  "fileMustToBeCSV" : "יש להעלות קובץ מסוג CSV בלבד"
-
+  "fileMustToBeCSV" : "יש להעלות קובץ מסוג CSV בלבד",
+  "deleteFile" : "מחק קובץ",
+  "noValue": "ללא ערך",
+  "israel" : "ישראל",
+  "usa" : "ארצות הברית"
 }

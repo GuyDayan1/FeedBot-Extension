@@ -1,3 +1,5 @@
+import { formatPhoneNumber} from "./general-utils";
+
 const Papa = require('papaparse');
 
 
@@ -6,7 +8,6 @@ export function exportToExcelFile(data, sheetName = 'Sheet', headers) {
     const rows = data.map(item => {
         return [item.phoneNumber, item.phoneBookContactName, item.whatsappUserName];
     });
-
     const csvData = Papa.unparse({
         fields: headers,
         data: rows
@@ -26,7 +27,7 @@ export function exportToExcelFile(data, sheetName = 'Sheet', headers) {
 
 
 
-export function readExcelFile(file) {
+export function readExcelFile(file,formatType) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsText(file);
@@ -37,16 +38,23 @@ export function readExcelFile(file) {
             const headers = parsedData.meta.fields; // Extract the header names
             const colsSize = Object.keys(data[0]).length;
             const columnKeys = generateColumnKeys(colsSize);
-            const newExcelData = data.map((row) => {
+            let excelData = data.map((row) => {
                 const newRow = {};
                 Object.keys(row).forEach((field, index) => {
                     const key = columnKeys[index];
-                    newRow[key] = row[field];
+                    if (key === 'colA'){
+                        let phone = row[field];
+                        newRow[key] = formatPhoneNumber(phone,formatType);
+                    }else {
+                        newRow[key] = row[field];
+                    }
                 });
-                return newRow;
+                return newRow
+            }).filter((row) => {
+                if (row !== undefined){if (row.colA !== undefined){if (row.colA.length > 0){return row}}}
             });
-
-            resolve({ data: newExcelData, headers });
+            excelData = removeDuplicatesByPhone(excelData)
+            resolve({ data: excelData, headers });
         };
         reader.onerror = (error) => {
             reject(error);
@@ -66,7 +74,15 @@ function generateColumnKeys(numColumns) {
     return columnKeys;
 }
 
-
+function removeDuplicatesByPhone(excelData) {
+    return excelData.reduce((accumulator, currentRow) => {
+        const isDuplicate = accumulator.some((row) => row.colA === currentRow.colA);
+        if (!isDuplicate) {
+            accumulator.push(currentRow);
+        }
+        return accumulator;
+    }, [])
+}
 /// XLSX lib
 
 // export function readExcelData(file) {

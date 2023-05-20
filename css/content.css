@@ -206,13 +206,13 @@ li{
 }
 
 .fb-custom-cancel-button{
-    margin-right: 0.5em;
+    /*margin-right: 0.5em;*/
     background-color: var(--cancel-button-color);
     color: white;
     font-weight: 300;
     border: none;
     border-radius: 20px; /* adjust the value to make the border more or less circular */
-    padding: 0.5em 1em;
+    /*padding: 0.5em 1em;*/
 }
 
 .fb-custom-cancel-button:hover{

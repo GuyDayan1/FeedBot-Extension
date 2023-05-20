@@ -11,7 +11,7 @@ export const GROUP_PARAM = "group";
 export const CONTACT_PARAM = "contact"
 export const SENDING_STATE = "sending";
 export const UNUSED_STATE = "un-used"
-export const BLOCK_SENDING = "block-sending";
+export const BULK_SENDING = "bulk-sending";
 export const SINGLE_GROUP_SENDING = "single-group-sending";
 export const SINGLE_CONTACT_SENDING = "single-contact-sending";
 
@@ -24,5 +24,10 @@ export const SAVED_PARAM = "saved";
 export const UN_SAVED_PARAM = "un-saved";
 export const ALL_PARAM = "all";
 
+export const NO_VALUE_PARAM = "no-value"
+export const ISRAEL_PARAM = 'israel';
+export const USA_PARAM = 'usa';
 
+export const ISR_PREFIX = '972'
+export const USA_PREFIX = '1'
 

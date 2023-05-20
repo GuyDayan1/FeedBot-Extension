@@ -5,6 +5,7 @@ import {CONTACT_PARAM} from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
+import {getSchedulerMessages} from "./utils/chrome-utils";
 
 
 let headerElement;
@@ -382,15 +383,16 @@ async function exportAllGroupsParticipantsToExcel() {
 
 }
 
-function refreshScheduledMessagesList() {
-    let schedulerMessages = document.getElementsByClassName('scheduler-messages-container')[0]
-    if (schedulerMessages) {
-        schedulerMessages.remove()
-        showScheduledMessages().then(r => () => {
-            console.log("done reset messages")
-        })
-    }
-}
+  function refreshScheduledMessagesList() {
+     let schedulerListContainer = document.getElementsByClassName('scheduler-messages-container')[0];
+     let messagesList = schedulerListContainer.querySelector('.messages-list')
+     if (messagesList) {messagesList.remove()}
+     setTimeout(async () => {
+         let newMessagesList = await createMessagesList();
+         schedulerListContainer.appendChild(newMessagesList);
+     },50)
+
+ }
 
 async function showScheduledMessages() {
     let schedulerMessagesExist = document.getElementsByClassName('scheduler-messages-container')[0]
@@ -401,127 +403,132 @@ async function showScheduledMessages() {
         const backToChatList = document.createElement('div')
         backToChatList.className = "back-to-chat-list";
         backToChatList.innerText = translation.backToChat
-        const messagesList = document.createElement("div");
-        messagesList.className = "messages-list";
-        GeneralUtils.addScrollingAbility(messagesList, "432px")
         backToChatList.addEventListener('click', () => {
             schedulerListContainer.remove()
             paneSideElement.style.display = "flex";
         })
+        const messagesList = await createMessagesList()
         schedulerListContainer.appendChild(backToChatList)
         schedulerListContainer.appendChild(messagesList);
         paneSideElement.insertAdjacentElement('afterend', schedulerListContainer)
         paneSideElement.style.display = "none"
-        // waitForNode(document.body, WhatsAppGlobals.paneSideElement).then((element) => {
-        //     element.insertAdjacentElement('afterend', schedulerListContainer)
-        // })
-        // await GeneralUtils.clearChildesFromParent(messagesList)
-        const schedulerMessages = await ChromeUtils.getSchedulerMessages();
-        const relevantMessages = schedulerMessages.filter(item => (!item.messageSent) && (!item.deleted))
-        if (relevantMessages.length > 0) {
-            for (const item of relevantMessages) {
-                const messageFrame = await createMessageFrame(item);
-                messagesList.appendChild(messageFrame);
-            }
-
-            async function createMessageFrame(item) {
-                const newCellFrame = cellFrameElement.cloneNode(true)
-                const clickListener = (event) => {
-                };
-                newCellFrame.addEventListener('click', clickListener);
-                newCellFrame.removeEventListener('click', clickListener);
-                //frameStyle
-                newCellFrame.style.paddingBottom = "5px"
-                newCellFrame.style.paddingTop = "2px"
-                // ** contact name ** //
-                const cellFrameTitleElement = newCellFrame.querySelector('div[data-testid="cell-frame-title"]');
-                const firstCellFrameChild = cellFrameTitleElement.childNodes[0];
-                const chatTextElement = firstCellFrameChild.childNodes[0]
-                const chatTitleItem = item.chatTitleElement;
-                await GeneralUtils.clearChildesFromParent(firstCellFrameChild)
-                chatTextElement.title = chatTitleItem.chatName;
-                chatTextElement.textContent = chatTitleItem.chatName;
-                firstCellFrameChild.appendChild(chatTextElement)
-                let emoji
-                const emojiAttr = chatTitleItem.emojiAttr
-                if (emojiAttr) {
-                    emoji = document.createElement('img')
-                    emoji.src = emojiAttr.src
-                    emoji.alt = emojiAttr.alt;
-                    emoji.className = emojiAttr.className
-                    emoji.style.backgroundPosition = emojiAttr.backgroundPosition;
-                    emoji.draggable = false;
-                    chatTextElement.appendChild(emoji)
-                }
-                // ** message date ** //
-                const detailContainer = newCellFrame.querySelector('div[data-testid="cell-frame-primary-detail"]')
-                detailContainer.childNodes[0].textContent = item.dateTimeStr;
-                detailContainer.style.color = "#667781"
-                //contact - text
-                const lastMessageStatus = newCellFrame.querySelector('span[data-testid="last-msg-status"]');
-                lastMessageStatus.title = item.message
-                lastMessageStatus.style.color = "#7e7a7a"
-                lastMessageStatus.style.fontWeight = "bold"
-                await GeneralUtils.clearChildesFromParent(lastMessageStatus)
-                // const chatNameTitle = firstCellFrameChild.childNodes[0];
-                let messageTextElement = chatTextElement.cloneNode(true)
-                messageTextElement.textContent = item.message
-                messageTextElement.title = item.message
-                lastMessageStatus.appendChild(messageTextElement)
-                // add cancel button
-                const cellFrameSecondary = newCellFrame.querySelector('div[data-testid="cell-frame-secondary"]');
-                const iconPlaceElement = cellFrameSecondary.childNodes[1];
-                if (iconPlaceElement) {
-                    const currentFirstChild = iconPlaceElement.children[0];
-                    iconPlaceElement.removeChild(currentFirstChild);
-                    // add cancel button
-                    const deleteMessageButton = document.createElement('button')
-                    deleteMessageButton.textContent = translation.deleteText
-                    deleteMessageButton.className = "fb-custom-cancel-button"
-                    deleteMessageButton.setAttribute("key", item.id)
-                    deleteMessageButton.addEventListener('click', (e) => {
-                        Swal.fire({
-                            title: translation.deleteMessage,
-                            text: translation.sureAboutDeleteMessage,
-                            icon: 'warning',
-                            showCancelButton: true,
-                            reverseButtons: true,
-                            confirmButtonColor: '#3085d6',
-                            cancelButtonColor: '#d33',
-                            cancelButtonText: translation.confirmCancel,
-                            confirmButtonText: translation.confirmDelete,
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                item.deleted = true;
-                                ChromeUtils.updateItem(item)
-                                clearTimeOutItem(item.id)
-                                showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully)
-                            }
-
-                        })
-                    })
-                    const editMessageButton = document.createElement('button')
-                    editMessageButton.textContent = translation.edit
-                    editMessageButton.className = "custom-edit-button"
-                    editMessageButton.addEventListener('click', async () => {
-                        await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})
-                    })
-                    //editMessageButton.setAttribute("key", item.id)
-                    iconPlaceElement.insertBefore(deleteMessageButton, iconPlaceElement.firstChild);
-                    iconPlaceElement.insertBefore(editMessageButton, iconPlaceElement.firstChild);
-                }
-                //contact image
-                newCellFrame.childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].src = item.imageUrl;
-                return newCellFrame;
-            }
-        } else {
-            emptyMessagesAlert = document.createElement('div');
-            emptyMessagesAlert.className = "empty-scheduler-messages";
-            emptyMessagesAlert.innerHTML = translation.arentScheduledMessages
-            messagesList.appendChild(emptyMessagesAlert)
-        }
     }
+}
 
+async function createMessagesList() {
+    const messagesList = document.createElement("div");
+    messagesList.className = "messages-list";
+    GeneralUtils.addScrollingAbility(messagesList, "432px")
+    const schedulerMessages = await ChromeUtils.getSchedulerMessages();
+    const relevantMessages = schedulerMessages.filter(item => (!item.messageSent) && (!item.deleted))
+    if (relevantMessages.length > 0) {
+        createMessagesFrames(messagesList, relevantMessages).then(r => {})
+    } else {
+        emptyMessagesAlert = document.createElement('div');
+        emptyMessagesAlert.className = "empty-scheduler-messages";
+        emptyMessagesAlert.innerHTML = translation.arentScheduledMessages
+        messagesList.appendChild(emptyMessagesAlert)
+    }
+    return messagesList;
+}
+
+async function createMessagesFrames(messagesList, relevantMessages) {
+    for (const item of relevantMessages) {
+        const messageFrame = await createMessageFrame(item);
+        messagesList.appendChild(messageFrame);
+    }
+}
+
+async function createMessageFrame(item) {
+    const newCellFrame = cellFrameElement.cloneNode(true)
+    const clickListener = (event) => {
+    };
+    newCellFrame.addEventListener('click', clickListener);
+    newCellFrame.removeEventListener('click', clickListener);
+    //frameStyle
+    newCellFrame.style.paddingBottom = "5px"
+    newCellFrame.style.paddingTop = "2px"
+    // ** contact name ** //
+    const cellFrameTitleElement = newCellFrame.querySelector('div[data-testid="cell-frame-title"]');
+    const firstCellFrameChild = cellFrameTitleElement.childNodes[0];
+    const chatTextElement = firstCellFrameChild.childNodes[0]
+    const chatTitleItem = item.chatTitleElement;
+    await GeneralUtils.clearChildesFromParent(firstCellFrameChild)
+    chatTextElement.title = chatTitleItem.chatName;
+    chatTextElement.textContent = chatTitleItem.chatName;
+    firstCellFrameChild.appendChild(chatTextElement)
+    let emoji
+    const emojiAttr = chatTitleItem.emojiAttr
+    if (emojiAttr) {
+        emoji = document.createElement('img')
+        emoji.src = emojiAttr.src
+        emoji.alt = emojiAttr.alt;
+        emoji.className = emojiAttr.className
+        emoji.style.backgroundPosition = emojiAttr.backgroundPosition;
+        emoji.draggable = false;
+        chatTextElement.appendChild(emoji)
+    }
+    // ** message date ** //
+    const detailContainer = newCellFrame.querySelector('div[data-testid="cell-frame-primary-detail"]')
+    detailContainer.childNodes[0].textContent = item.dateTimeStr;
+    detailContainer.style.color = "#667781"
+    //contact - text
+    const lastMessageStatus = newCellFrame.querySelector('span[data-testid="last-msg-status"]');
+    lastMessageStatus.title = item.message
+    lastMessageStatus.style.color = "#7e7a7a"
+    lastMessageStatus.style.fontWeight = "bold"
+    await GeneralUtils.clearChildesFromParent(lastMessageStatus)
+    // const chatNameTitle = firstCellFrameChild.childNodes[0];
+    let messageTextElement = chatTextElement.cloneNode(true)
+    messageTextElement.textContent = item.message
+    messageTextElement.title = item.message
+    lastMessageStatus.appendChild(messageTextElement)
+    // add cancel button
+    const cellFrameSecondary = newCellFrame.querySelector('div[data-testid="cell-frame-secondary"]');
+    const iconPlaceElement = cellFrameSecondary.childNodes[1];
+    if (iconPlaceElement) {
+        const currentFirstChild = iconPlaceElement.children[0];
+        iconPlaceElement.removeChild(currentFirstChild);
+        // add cancel button
+        const deleteMessageButton = document.createElement('button')
+        deleteMessageButton.textContent = translation.deleteText
+        deleteMessageButton.className = "fb-custom-cancel-button"
+        deleteMessageButton.setAttribute("key", item.id)
+        deleteMessageButton.addEventListener('click', (e) => {
+            Swal.fire({
+                title: translation.deleteMessage,
+                text: translation.sureAboutDeleteMessage,
+                icon: 'warning',
+                showCancelButton: true,
+                reverseButtons: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                cancelButtonText: translation.confirmCancel,
+                confirmButtonText: translation.confirmDelete,
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    item.deleted = true;
+                    ChromeUtils.updateItem(item)
+                    clearTimeOutItem(item.id)
+                    refreshScheduledMessagesList()
+                    showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully, 'success')
+                }
+
+            })
+        })
+        const editMessageButton = document.createElement('button')
+        editMessageButton.textContent = translation.edit
+        editMessageButton.className = "custom-edit-button"
+        editMessageButton.addEventListener('click', async () => {
+            await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})
+        })
+        //editMessageButton.setAttribute("key", item.id)
+        iconPlaceElement.insertBefore(deleteMessageButton, iconPlaceElement.firstChild);
+        iconPlaceElement.insertBefore(editMessageButton, iconPlaceElement.firstChild);
+    }
+    //contact image
+    newCellFrame.childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].src = item.imageUrl;
+    return newCellFrame;
 }
 
 
@@ -571,7 +578,7 @@ async function handleConfirmButtonClick(messageData) {
                 const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
                 console.log("new message id is: " + id)
                 saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
-                    showToastMessage('bottom-end', 5 * Globals.SECOND, false, translation.messageSavedSuccessfully)
+                    showToastMessage('bottom-end', 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
                 }).catch((error) => {
                     console.log(error)
                 })
@@ -948,43 +955,72 @@ const showBulkSendingModal = async () => {
                 // TODO : start bulking sending with finalData
             }
         });
+        let body = document.getElementsByClassName('bulk-sending-modal-container')[0];
         const confirmButton = Swal.getConfirmButton();
         confirmButton.disabled = true;
         const fileInput = document.getElementById('excel-file');
+        const deleteButton = document.getElementById('delete-file-button');
+        deleteButton.innerText = translation.deleteFile
+        deleteButton.style.width = "8em";
+        deleteButton.style.height = "2em"
+        deleteButton.addEventListener('click', () => {
+            fileInput.value = ''; // Clear the file input value
+            deleteButton.style.display = 'none'; // Hide the delete button
+            resetData()
+        });
         fileInput.addEventListener('change', async () => {
-            let body = document.getElementsByClassName('bulk-sending-modal-container')[0];
             const selectedFile = fileInput.files[0];
+            if (selectedFile) {
+                deleteButton.style.display = 'inline-block';
+            }
             const fileName = selectedFile.name;
             const fileSuffix = fileName.split('.').pop().toLowerCase();
             if (fileSuffix === 'csv') {
                 Swal.resetValidationMessage()
-                ExcelUtils.readExcelFile(selectedFile).then((result) => {
+                let phoneSelector = document.getElementById('phone-format');
+                let formatType = phoneSelector.value;
+                ExcelUtils.readExcelFile(selectedFile, formatType).then((result) => {
                     let data = result.data;
-                    let wrongNumbers;
-                    finalData = data.map(item=>{
-                        let phone = item.colA;
-                        if (phone){
-                            item.colA = GeneralUtils.formatPhone(phone)
-                        }
-                        return item;
-                    })
+                    console.log(data)
                     let tableContainer = document.createElement('div');
                     tableContainer.className = "fb-table-container";
-                    if (client.language === Globals.HEBREW_LANGUAGE_PARAM) {tableContainer.style.direction = "ltr"}
-                    let bulkTable = GeneralUtils.createTable(result.headers,finalData)
+                    if (client.language === Globals.HEBREW_LANGUAGE_PARAM) {
+                        tableContainer.style.direction = "ltr"
+                    }
+                    let bulkTable = GeneralUtils.createTable(result.headers, data)
                     tableContainer.appendChild(bulkTable)
                     body.appendChild(tableContainer)
                     confirmButton.disabled = false; // Enable the "OK" button
                 })
             } else {
+                resetData(body, confirmButton)
                 Swal.showValidationMessage(translation.fileMustToBeCSV);
-                let tableBody = document.getElementsByClassName('fb-table-container')[0]
-                if (body){tableBody.remove()}
-                confirmButton.disabled = true; // Enable the "OK" button
+
             }
         });
+        const availableFormatters = [
+            {value: Globals.NO_VALUE_PARAM, text: translation.noValue}
+            , {value: Globals.ISRAEL_PARAM, text: translation.israel}
+            , {value: Globals.USA_PARAM, text: translation.usa}]
+        const formatSelector = document.getElementById('phone-format')
+        for (let formatter of availableFormatters) {
+            let option = document.createElement('option')
+            option.value = formatter.value;
+            option.text = formatter.text
+            formatSelector.appendChild(option)
+        }
     } catch (error) {
         console.error(error);
+    }
+
+    function resetData() {
+        Swal.resetValidationMessage()
+        const confirmButton = Swal.getConfirmButton()
+        let tableBody = document.getElementsByClassName('fb-table-container')[0]
+        if (tableBody) {
+            tableBody.remove()
+        }
+        confirmButton.disabled = true; // Enable the "OK" button
     }
 }
 
@@ -1243,7 +1279,7 @@ const showContactsModal = () => {
 }
 
 
-const showToastMessage = (position, timer, timerProgressBar, title) => {
+const showToastMessage = (position, timer, timerProgressBar, title, iconType) => {
     const Toast = Swal.mixin({
         toast: true,
         position: position,
@@ -1257,7 +1293,7 @@ const showToastMessage = (position, timer, timerProgressBar, title) => {
     })
 
     Toast.fire({
-        icon: 'success',
+        icon: iconType,
         title: title
     })
 }

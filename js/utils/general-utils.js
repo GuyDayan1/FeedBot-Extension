@@ -1,4 +1,5 @@
 import * as Globals from "./globals";
+import {ISR_PREFIX, ISRAEL_PARAM} from "./globals";
 
 export async function clearChildesFromParent(parentNode) {
     while (parentNode.firstChild) {
@@ -172,11 +173,18 @@ export function createTable(headers,data) {
     return table;
 }
 
-export const formatPhone = (phone) => {
-    let newPhone = phone.trim();
-    newPhone = newPhone.replace(/\D/g, '');   // replace any char with empty
-    if (newPhone.startsWith('9720')) newPhone = newPhone.slice(3);
-    if (newPhone.startsWith('972')) newPhone = '0' + newPhone.slice(3);
-    if (!newPhone.startsWith('0')) newPhone = '0' + newPhone;
+export function formatPhoneNumber(phoneNumber, formatType) {
+    let newPhone = phoneNumber.trim();
+    newPhone = newPhone.replace(/\D/g, ''); // Remove any non-digit characters
+    switch (formatType){
+        case ISRAEL_PARAM:
+            if (newPhone.startsWith('05')){
+                newPhone = ISR_PREFIX + newPhone.slice(1)
+            }
+            if (newPhone.startsWith('5')){
+                newPhone = ISR_PREFIX + newPhone;
+            }
+    }
+    console.log(newPhone)
     return newPhone;
 }
