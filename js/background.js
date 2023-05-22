@@ -1,12 +1,14 @@
 
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    let currentURL = tab.url
-    let status = tab.status
+    let currentURL = tab.url;
+    let status = tab.status;
     if (currentURL.includes("web.whatsapp") && status === "complete") {
-        chrome.tabs.sendMessage(tabId, "complete");
+            chrome.tabs.sendMessage(tabId, "complete");
     }
 });
+
+
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

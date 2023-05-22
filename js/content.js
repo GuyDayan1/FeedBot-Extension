@@ -1,11 +1,9 @@
 import * as ChromeUtils from "./utils/chrome-utils";
 import * as GeneralUtils from "./utils/general-utils"
 import * as Globals from "./utils/globals"
-import {CONTACT_PARAM} from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
-import {getSchedulerMessages} from "./utils/chrome-utils";
 
 
 let headerElement;
@@ -28,44 +26,13 @@ let feedBotListOptions = [];
 let excelFeaturesListOptions = []
 
 
-chrome.runtime.onMessage.addListener((message, sender, response) => {
-    if (message === "complete") {
-        completeStatusCounter++;
-        if ((completeStatusCounter > 1) && (!load)) {
-            initTranslations().then(() => {
-                console.log("Finish to load translations")
-                console.log(translation)
-                loadExtension().then(() => console.log("Finish to load extension"))
-            })
-            load = true;
-        }
-    }
 
-});
-
-
-const loadExtension = async () => {
-    await addFeedBotIcon();
-    await initMessagesTimeOut();
-    await chatListener();
-};
-
-
-async function initTranslations() {
-    client.language = localStorage.getItem(WhatsAppGlobals.WA_language).replaceAll('"', '').split("_")[0] || Globals.HEBREW_LANGUAGE_PARAM;
-    let languagePath = `languages/${client.language}.json`;
-    let htmlUrl = chrome.runtime.getURL(languagePath);
-    const response = await fetch(htmlUrl);
-    translation = await response.json();
-}
-
-function addFeedBotIcon() {
-    const headerElementObserver = new MutationObserver(async () => {
-        headerElement = document.querySelector(WhatsAppGlobals.chatListHeaderElement);
-        if (headerElement !== null) {
-            connected = true;
-            headerElementObserver.disconnect();
-            await getSvgWhatsAppElement();
+const headerElementObserver = new MutationObserver(async () => {
+    headerElement = document.querySelector(WhatsAppGlobals.chatListHeaderElement);
+    if (headerElement !== null) {
+        connected = true;
+        headerElementObserver.disconnect();
+        await loadExtension().then(()=>{
             let secondDiv = headerElement.childNodes[1];
             let childNodes = secondDiv.childNodes;
             const firstChild = childNodes[0].firstChild;
@@ -92,22 +59,34 @@ function addFeedBotIcon() {
                 });
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
-
-            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {
-                chatInputPlaceholder = translation.typeMessage
-            }
-            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)) {
-                chatInputPlaceholder = translation.typeMessage
-            }
-
+            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {chatInputPlaceholder = translation.typeMessage}
+            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)) {chatInputPlaceholder = translation.typeMessage}
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
-            //ChromeUtils.clearStorage()
-        }
+        })
+        //ChromeUtils.clearStorage()
+    }
+});
+headerElementObserver.observe(document.body, {childList: true, subtree: true});
 
-    });
-    headerElementObserver.observe(document.body, {childList: true, subtree: true});
+
+const loadExtension = async () => {
+    await initTranslations()
+    await getSvgWhatsAppElement();
+    await initMessagesTimeOut();
+    await chatListener();
+};
+
+
+async function initTranslations() {
+    client.language = localStorage.getItem(WhatsAppGlobals.WA_LANGUAGE_PARAM).replaceAll('"', '').split("_")[0] || Globals.ENGLISH_LANGUAGE_PARAM;
+    let languagePath = `languages/${client.language}.json`;
+    let htmlUrl = chrome.runtime.getURL(languagePath);
+    const response = await fetch(htmlUrl);
+    translation = await response.json();
 }
+
+
 
 
 async function initMessagesTimeOut() {
@@ -145,12 +124,12 @@ async function initMessagesTimeOut() {
 function chatListener() {
     waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
-            waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, 3000).then(async (element) => {
+            waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
                 currentChatDetails = GeneralUtils.getChatDetails();
-                waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, 3000)
+                waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 5)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
-                        if (!clockIcon && currentChatDetails.type === CONTACT_PARAM) {
+                        if (!clockIcon && currentChatDetails.type === Globals.CONTACT_PARAM) {
                             addSchedulerButton()
                         }
                     })
@@ -166,12 +145,11 @@ function chatListener() {
 
 async function clearAllItemsTimeOuts() {
     for (let id in activeMessagesTimeout) {
-        clearTimeout(activeMessagesTimeout[id]);
-        console.log("cleared,  id: " + id + " timeoutId " + activeMessagesTimeout[id])
+        clearSpecificItem(id)
     }
 }
 
-function clearTimeOutItem(id) {
+function clearSpecificItem(id) {
     clearTimeout(activeMessagesTimeout[id])
     delete activeMessagesTimeout[id]
     console.log("active messages timeouts:")
@@ -383,16 +361,18 @@ async function exportAllGroupsParticipantsToExcel() {
 
 }
 
-  function refreshScheduledMessagesList() {
-     let schedulerListContainer = document.getElementsByClassName('scheduler-messages-container')[0];
-     let messagesList = schedulerListContainer.querySelector('.messages-list')
-     if (messagesList) {messagesList.remove()}
-     setTimeout(async () => {
-         let newMessagesList = await createMessagesList();
-         schedulerListContainer.appendChild(newMessagesList);
-     },50)
+function refreshScheduledMessagesList() {
+    let schedulerListContainer = document.getElementsByClassName('scheduler-messages-container')[0];
+    let messagesList = schedulerListContainer.querySelector('.messages-list')
+    if (messagesList) {
+        messagesList.remove()
+    }
+    setTimeout(async () => {
+        let newMessagesList = await createMessagesList();
+        schedulerListContainer.appendChild(newMessagesList);
+    }, 50)
 
- }
+}
 
 async function showScheduledMessages() {
     let schedulerMessagesExist = document.getElementsByClassName('scheduler-messages-container')[0]
@@ -422,7 +402,8 @@ async function createMessagesList() {
     const schedulerMessages = await ChromeUtils.getSchedulerMessages();
     const relevantMessages = schedulerMessages.filter(item => (!item.messageSent) && (!item.deleted))
     if (relevantMessages.length > 0) {
-        createMessagesFrames(messagesList, relevantMessages).then(r => {})
+        createMessagesFrames(messagesList, relevantMessages).then(r => {
+        })
     } else {
         emptyMessagesAlert = document.createElement('div');
         emptyMessagesAlert.className = "empty-scheduler-messages";
@@ -474,9 +455,11 @@ async function createMessageFrame(item) {
     detailContainer.style.color = "#667781"
     //contact - text
     const lastMessageStatus = newCellFrame.querySelector('span[data-testid="last-msg-status"]');
-    lastMessageStatus.title = item.message
-    lastMessageStatus.style.color = "#7e7a7a"
-    lastMessageStatus.style.fontWeight = "bold"
+    if (lastMessageStatus) {
+        lastMessageStatus.title = item.message
+        lastMessageStatus.style.color = "#7e7a7a"
+        lastMessageStatus.style.fontWeight = "bold"
+    }
     await GeneralUtils.clearChildesFromParent(lastMessageStatus)
     // const chatNameTitle = firstCellFrameChild.childNodes[0];
     let messageTextElement = chatTextElement.cloneNode(true)
@@ -509,7 +492,7 @@ async function createMessageFrame(item) {
                 if (result.isConfirmed) {
                     item.deleted = true;
                     ChromeUtils.updateItem(item)
-                    clearTimeOutItem(item.id)
+                    clearSpecificItem(item.id)
                     refreshScheduledMessagesList()
                     showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully, 'success')
                 }
@@ -915,15 +898,16 @@ const showSentMessagesPopup = (unSentMessages) => {
         cancelButtonText: translation.confirmCancel,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33'
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
+            await GeneralUtils.sleep(1)
             unSentMessages.forEach(item => {
                 sendMessage(item.id).then(() => {
                     console.log("message has been sent number: " + item.id)
                 })
             })
         }
-        if (result.isDismissed) {
+        if (result.isDismissed || result.dismiss) {
             unSentMessages.forEach(item => {
                 item.deleted = true;
                 ChromeUtils.updateItem(item).then(r => {
