@@ -88,7 +88,7 @@ export function getAllObjectStoreByIndexFromDb(db , key , indexName){
     }))
 }
 export function getChatDetails() {
-    let type;
+    let chatType;
     let media;
     let chatId;
     const element = document.querySelector("[data-testid*='conv-msg']");
@@ -97,12 +97,12 @@ export function getChatDetails() {
     chatId = parts[1];
     if (chatId.includes("@g.us")) {
         media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
-        type = Globals.GROUP_PARAM
+        chatType = Globals.GROUP_PARAM
     } else {
         media = chatId.split("@")[0]
-        type = Globals.CONTACT_PARAM
+        chatType = Globals.CONTACT_PARAM
     }
-    return {type, media, chatId}
+    return {chatType, media, chatId}
 }
 
 export const addScrollingAbility = (list,maxHeight) => {

@@ -9,12 +9,17 @@ export const SECOND = 1000;
 export const MESSAGE_MISSING_TEXT = "ההודעה חייבת להכיל טקסט"
 export const GROUP_PARAM = "group";
 export const CONTACT_PARAM = "contact"
+
 export const SENDING_STATE = "sending";
 export const UNUSED_STATE = "un-used"
-export const BULK_SENDING = "bulk-sending";
-export const SINGLE_GROUP_SENDING = "single-group-sending";
-export const SINGLE_CONTACT_SENDING = "single-contact-sending";
 
+export const BULK_SENDING = "bulk-sending";
+export const SCHEDULED_SENDING = "scheduled-sending"
+
+export const CONTACT_CHAT = "contact-chat"
+export const GROUP_CHAT = "group-chat"
+
+export const EXCEL_PARAM = "excel"
 export const NEW_MESSAGE = "new-message";
 export const EDIT_MESSAGE = "edit-message"
 
