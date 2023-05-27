@@ -101,7 +101,8 @@
     background-size: contain;
     height: 25px;
     width: 25px;
-    margin-left: 16px;
+    margin-left: 1em;
+    margin-right: 1em;
     cursor: pointer;
 }
 
@@ -220,7 +221,7 @@ li{
     cursor: pointer;
 }
 
-.custom-edit-button{
+.fb-custom-edit-button{
     background-color: var(--edit-button-color);
     color: white;
     font-weight: 300;
@@ -230,7 +231,7 @@ li{
 
 }
 
-.custom-edit-button:hover{
+.fb-custom-edit-button:hover{
     background-color: var(--edit-button-hover-color);
     cursor: pointer;
 }

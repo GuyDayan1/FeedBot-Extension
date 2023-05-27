@@ -4,6 +4,7 @@ import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
+import {updateItem} from "./utils/chrome-utils";
 
 
 let headerElement;
@@ -13,7 +14,6 @@ let currentChatDetails = {chatType: "", media: "", chatId: ""}
 let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
 let bulkSendingData;
 let feedBotIcon;
-let load = false;
 let emptyMessagesAlert;
 let modalBackdrop;
 let clockIcon;
@@ -25,13 +25,12 @@ let feedBotListOptions = [];
 let excelFeaturesListOptions = []
 
 
-
 const headerElementObserver = new MutationObserver(async () => {
     headerElement = document.querySelector(WhatsAppGlobals.chatListHeaderElement);
     if (headerElement !== null) {
         connected = true;
         headerElementObserver.disconnect();
-        await loadExtension().then(()=>{
+        await loadExtension().then(() => {
             let secondDiv = headerElement.childNodes[1];
             let childNodes = secondDiv.childNodes;
             const firstChild = childNodes[0].firstChild;
@@ -58,8 +57,12 @@ const headerElementObserver = new MutationObserver(async () => {
                 });
             }
             cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
-            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {chatInputPlaceholder = translation.typeMessage}
-            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)) {chatInputPlaceholder = translation.typeMessage}
+            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {
+                chatInputPlaceholder = translation.typeMessage
+            }
+            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)) {
+                chatInputPlaceholder = translation.typeMessage
+            }
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
         })
@@ -78,14 +81,13 @@ const loadExtension = async () => {
 
 
 async function initTranslations() {
-    client.language = localStorage.getItem(WhatsAppGlobals.WA_LANGUAGE_PARAM).replaceAll('"', '').split("_")[0] || Globals.ENGLISH_LANGUAGE_PARAM;
+    let clientLanguage = localStorage.getItem(WhatsAppGlobals.WA_LANGUAGE_PARAM);
+    client.language = clientLanguage.includes(Globals.HEBREW_LANGUAGE_PARAM) ? Globals.HEBREW_LANGUAGE_PARAM : Globals.ENGLISH_LANGUAGE_PARAM;
     let languagePath = `languages/${client.language}.json`;
     let htmlUrl = chrome.runtime.getURL(languagePath);
     const response = await fetch(htmlUrl);
     translation = await response.json();
 }
-
-
 
 
 async function initMessagesTimeOut() {
@@ -114,7 +116,7 @@ async function initMessagesTimeOut() {
             await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.warnBeforeSending);
         }
         if (unSentMessages.length > 0) {
-            showSentMessagesPopup(unSentMessages)
+            showUnSentMessagesPopup(unSentMessages)
         }
     })
 }
@@ -125,7 +127,6 @@ function chatListener() {
         document.body.addEventListener('click', (e) => {
             waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
                 currentChatDetails = GeneralUtils.getChatDetails();
-                console.log(currentChatDetails)
                 waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 5)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
@@ -501,7 +502,7 @@ async function createMessageFrame(item) {
         })
         const editMessageButton = document.createElement('button')
         editMessageButton.textContent = translation.edit
-        editMessageButton.className = "custom-edit-button"
+        editMessageButton.className = "fb-custom-edit-button"
         editMessageButton.addEventListener('click', async () => {
             await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})
         })
@@ -589,98 +590,108 @@ async function handleConfirmButtonClick(messageData) {
 
 const startBulkSending = (data) => {
     let index = data.startIndex;
-    const sendMessagesInterval = setInterval(() => {
-        if (index < bulkSendingData.length) {
-            const item = bulkSendingData[index];
-            console.log(item)
-            sendMessage(item.id, Globals.BULK_SENDING)
-                .then(() => {})
-                .catch((error) => {
-                    console.error("Error sending item number: " + item.id, error);
-                });
-            index++;
-        } else {
-            clearInterval(sendMessagesInterval);
+    let extra = data.extra
+    client.state = Globals.SENDING_STATE;
+    client.sendingType = Globals.BULK_SENDING
+    const sendNextItem = () => {
+        if (index >= bulkSendingData.length) {
+            return;
         }
-    }, 3 * Globals.SECOND);
-
+        const item = bulkSendingData[index]
+        executeContactSending(item).then((result) => {
+            if (result === true) {
+                console.log("finish to send");
+                index++;
+                sendNextItem()
+            } else {
+                console.error("error in sending" + item.id)
+            }
+        }).catch((error) => {
+            console.error("Error sending bulk message number: " + item.id, error);
+            index++;
+            sendNextItem()
+        })
+    }
+    sendNextItem()
 }
 
-const sendMessage = async (id,sendingType) => {
-    if (client.state === Globals.SENDING_STATE) {
-        if (client.sendingType === Globals.SCHEDULED_SENDING){
+const sendScheduledMessage = async (id) => {
+    const item = await ChromeUtils.getScheduleMessageById(id);
+    let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.SECOND * 60;
+    console.log("relevant: " + relevantMessage)
+    console.log("item: " , item)
+    if (relevantMessage || item.repeatSending){
+        client.sendingType = Globals.SENDING_STATE
+        if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
                 if (client.state === Globals.UNUSED_STATE) {
                     clearInterval(sendingInterval)
-                    sendMessage(id,sendingType)
+                    console.log("clear interval start to send item number " + id)
+                    sendScheduledMessage(id)
                 }
             }, 50)
-        }
-    } else {
-        client.state = Globals.SENDING_STATE;
-        if (sendingType === Globals.SCHEDULED_SENDING){
-            const item = await ChromeUtils.getScheduleMessageById(id)
-            if (item.chatType === Globals.CONTACT_PARAM){
-                executeContactSending(item,sendingType).then(res=>{
-                    //console.log("done to send scheduled message number: " + item.id +" for contact")
+        } else {
+            client.state = Globals.SENDING_STATE;
+            if (item.chatType === Globals.CONTACT_PARAM) {
+                executeContactSending(item).then(res => {
+                    client.state = Globals.UNUSED_STATE;
+                    client.sendingType = "";
+                    if (res.success){
+                        ChromeUtils.updateItem(res.newItem)
+                    }else {
+                        console.log(res.error)
+                    }
                 })
             }
-        }
-        if (sendingType === Globals.BULK_SENDING){
-            const item = bulkSendingData.find(item=> item.id === id)
-            executeContactSending(item,sendingType).then(res=>{
-                //console.log("done to send bulk message number: " + item.id +" for contact")
-            })
-        }
-    }
 
+        }
+    }else {
+        const unSentMessages = []
+        unSentMessages.push(item)
+        showUnSentMessagesPopup(unSentMessages)
+    }
 }
 
 function executeContactSending(item) {
     return new Promise((async (resolve, reject) => {
-            let element = document.createElement("a");
-            element.href = `https://api.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
-            element.id = "mychat";
-            document.body.append(element);
-            let p1 = document.getElementById("mychat");
-            p1.click();
-            const waitForChatInterval = setInterval(() => {
-                const chatDetails = GeneralUtils.getChatDetails();
-                if (chatDetails.chatId === item.chatId) {
-                    clearInterval(waitForChatInterval)
-                    const waitForTextInterval = setInterval(async () => {
-                        const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
-                        if (composeBoxElement) {
-                            let textInput = document.querySelectorAll('[class*="text-input"]')[1]
-                            let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
-                            if (textContext === item.message) {
-                                clearInterval(waitForTextInterval)
-                                waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', 2500)
-                                    .then(sendElement => {
-                                        sendElement.click();
-                                        p1.remove();
-                                        item.messageSent = true;
-                                        if (item.sendingType === Globals.SCHEDULED_SENDING){
-                                            ChromeUtils.updateItem(item)
-                                        }
-                                        client.state = Globals.UNUSED_STATE;
-                                        client.sendingType = ""
-                                        resolve(true)
-                                    })
-                                    .catch(error => {
-                                        console.log(error)
-                                        reject(false)
-                                    });
+        let element = document.createElement("a");
+        element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
+        element.id = "mychat";
+        document.body.append(element);
+        let p1 = document.getElementById("mychat");
+        p1.click();
+        const waitForChatInterval = setInterval(() => {
+            const chatDetails = GeneralUtils.getChatDetails();
+            if (chatDetails.chatId === item.chatId) {
+                clearInterval(waitForChatInterval)
+                const waitForTextInterval = setInterval(async () => {
+                    const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
+                    if (composeBoxElement) {
+                        let textInput = document.querySelectorAll('[class*="text-input"]')[1]
+                        let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
+                        if (textContext === item.message) {
+                            clearInterval(waitForTextInterval)
+                            waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', 2500)
+                                .then(sendElement => {
+                                    sendElement.click();
+                                    p1.remove();
+                                    item.messageSent = true;
+                                    resolve({success:true, newItem : item})
+                                })
+                                .catch(error => {
+                                    reject({ success: false, error: error });
+                                });
 
-                            } else {
-                                GeneralUtils.simulateKeyPress('keydown', "Escape");
-                                await GeneralUtils.sleep(1)
-                                p1.click();
-                            }
+                        } else {
+                            GeneralUtils.simulateKeyPress('keydown', "Escape");
+                            console.log("click on escape")
+                            await GeneralUtils.sleep(1)
+                            p1.click();
                         }
-                    }, 50)
-                }
-            }, 300)
+                    }
+                }, 50)
+            }
+        }, 300)
 
     }))
 }
@@ -738,11 +749,12 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 chatId: currentChatDetails.chatId,
                 chatType: currentChatDetails.chatType,
                 media: currentChatDetails.media,
-                sendingType : Globals.SCHEDULED_SENDING,
+                sendingType: Globals.SCHEDULED_SENDING,
                 imageUrl,
                 chatTitleElement,
                 dateTimeStr,
                 warnBeforeSending,
+                repeatSending : false,
                 messageSent: false,
                 deleted: false
             };
@@ -801,23 +813,21 @@ function setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending) {
                 showUserTypingAlert(Globals.USER_TYPING_WARNING_TIME * Globals.SECOND, chatName)
                 await GeneralUtils.sleep(Globals.USER_TYPING_WARNING_TIME)
             }
-            startScheduledMessageSending(id)
+            sendScheduledMessage(id).then(res=>{
+                delete activeMessagesTimeout[id]
+            })
         }, elapsedTime - (Globals.USER_TYPING_WARNING_TIME * Globals.SECOND))
     } else {
         activeMessagesTimeout[id] = setTimeout(() => {
-            startScheduledMessageSending(id)
+            sendScheduledMessage(id).then(res=>{
+                delete activeMessagesTimeout[id]
+            })
         }, elapsedTime)
     }
-
+    console.log('active timeouts: ' , activeMessagesTimeout)
 }
 
-function startScheduledMessageSending(id) {
-    sendMessage(id,Globals.SCHEDULED_SENDING).then((result) => {
-        console.log("send message function done , result: " + result);
-        delete activeMessagesTimeout[id]
-        console.log(activeMessagesTimeout)
-    })
-}
+
 
 
 function waitForNode(parentNode, selector) {
@@ -906,7 +916,7 @@ const showErrorMessage = (message) => {
 }
 
 
-const showSentMessagesPopup = (unSentMessages) => {
+const showUnSentMessagesPopup = (unSentMessages) => {
     const container = document.createElement("div");
     container.className = "un-sent-container";
     const headline = document.createElement("div");
@@ -933,12 +943,15 @@ const showSentMessagesPopup = (unSentMessages) => {
         cancelButtonColor: '#d33'
     }).then(async (result) => {
         if (result.isConfirmed) {
+            console.log("confirm")
             await GeneralUtils.sleep(1)
-            unSentMessages.forEach(item => {
-                sendMessage(item.id,Globals.SCHEDULED_SENDING).then(() => {
+            for (const item of unSentMessages) {
+                item.repeatSending = true;
+                await updateItem(item)
+                sendScheduledMessage(item.id).then(() => {
                     console.log("message has been sent number: " + item.id)
                 })
-            })
+            }
         }
         if (result.isDismissed || result.dismiss) {
             unSentMessages.forEach(item => {
@@ -955,7 +968,7 @@ const showSentMessagesPopup = (unSentMessages) => {
 const showBulkSendingModal = async () => {
     let excelData;
     let excelHeaders;
-    let state = {message: '' , csvFile:false}
+    let state = {message: '', csvFile: false}
     try {
         const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage('get-bulk-sending-modal');
         Swal.fire({
@@ -971,19 +984,28 @@ const showBulkSendingModal = async () => {
             confirmButtonText: translation.approve,
         }).then((result) => {
             if (result.isConfirmed) {
-                bulkSendingData = excelData.map((item,index)=>{
-                    return {id: index, media: item.colA, message: state.message , messageSent : false , sendingType: Globals.BULK_SENDING , chatId : item.colA+'@c.us'}
+                bulkSendingData = excelData.map((item, index) => {
+                    return {
+                        id: index,
+                        media: item.colA,
+                        message: state.message,
+                        messageSent: false,
+                        sendingType: Globals.BULK_SENDING,
+                        chatId: item.colA + '@c.us'
+                    }
                 })
-                let extra = {pauseBetweenMessages : Globals.SECOND * 10}
-                startBulkSending({dataSource:Globals.EXCEL_PARAM, extra , startIndex:0})
+                let extra = {pauseBetweenMessages: Globals.SECOND * 10}
+                startBulkSending({dataSource: Globals.EXCEL_PARAM, extra, startIndex: 0})
             }
         });
         let body = document.getElementsByClassName('bulk-sending-modal-container')[0];
         const confirmButton = Swal.getConfirmButton();
         confirmButton.disabled = true;
-        const updateConfirmButton = () => {confirmButton.disabled = !(state.csvFile && state.message.length > 0);};
+        const updateConfirmButton = () => {
+            confirmButton.disabled = !(state.csvFile && state.message.length > 0);
+        };
         const messageTextArea = document.getElementById('message')
-        messageTextArea.addEventListener('input' , ()=>{
+        messageTextArea.addEventListener('input', () => {
             state.message = messageTextArea.value
             updateConfirmButton()
         })
@@ -999,7 +1021,9 @@ const showBulkSendingModal = async () => {
         });
         fileInput.addEventListener('change', async () => {
             const selectedFile = fileInput.files[0];
-            if (selectedFile) {deleteButton.style.display = 'inline-block';}
+            if (selectedFile) {
+                deleteButton.style.display = 'inline-block';
+            }
             const fileName = selectedFile.name;
             const fileSuffix = fileName.split('.').pop().toLowerCase();
             if (fileSuffix === 'csv') {
@@ -1012,7 +1036,9 @@ const showBulkSendingModal = async () => {
                     excelHeaders = result.headers
                     let tableContainer = document.createElement('div');
                     tableContainer.className = "fb-table-container";
-                    if (client.language === Globals.HEBREW_LANGUAGE_PARAM) {tableContainer.style.direction = "ltr"}
+                    if (client.language === Globals.HEBREW_LANGUAGE_PARAM) {
+                        tableContainer.style.direction = "ltr"
+                    }
                     let bulkTable = GeneralUtils.createTable(excelHeaders, excelData)
                     tableContainer.appendChild(bulkTable)
                     body.appendChild(tableContainer)
@@ -1024,13 +1050,17 @@ const showBulkSendingModal = async () => {
             }
             updateConfirmButton();
         });
+
         function resetData() {
             Swal.resetValidationMessage()
             state.csvFile = false;
             let tableBody = document.getElementsByClassName('fb-table-container')[0]
-            if (tableBody) {tableBody.remove()}
+            if (tableBody) {
+                tableBody.remove()
+            }
             updateConfirmButton()
         }
+
         const availableFormatters = [
             {value: Globals.NO_VALUE_PARAM, text: translation.noValue}
             , {value: Globals.ISRAEL_PARAM, text: translation.israel}

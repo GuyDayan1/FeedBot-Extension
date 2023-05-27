@@ -1,4 +1,28 @@
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (tab.url.includes('web.whatsapp.com')) {
+        console.log(new Date() , ": tab id: " ,tabId , "change info " ,changeInfo , "tab " , tab)
+    }
+});
 
+function getAllTabs() {
+    console.log("all tabs:")
+    chrome.tabs.query({}, function(tabs) {
+        for (let i = 0; i < tabs.length; i++) {
+            const tab = tabs[i];
+            console.log(tab)
+            // Perform actions with each active tab
+        }
+    });
+}
+
+
+/// check every tab clicked which tab is active
+// chrome.tabs.onActivated.addListener((activeInfo) => {
+//     const tabId = activeInfo.tabId;
+//     chrome.tabs.get(tabId, (tab) => {
+//         console.log(tab);
+//     });
+// });
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -13,6 +37,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         return true;
     }
+    if (request.action === "refresh"){
+        refreshWhatsAppTab();
+    }
 });
 
 function getHtmlFile(modalName) {
@@ -26,5 +53,17 @@ function getHtmlFile(modalName) {
             .catch(error => {
                 reject(error);
             });
+    });
+}
+function refreshWhatsAppTab() {
+    chrome.tabs.query({}, function(tabs) {
+        for (let i = 0; i < tabs.length; i++) {
+            const tab = tabs[i];
+            console.log(tab)
+            if (tab.url.includes('whatsapp.com') || tab.title.includes('WhatsApp')) {
+                chrome.tabs.reload(tab.id);
+                break; // Stop iterating once the WhatsApp tab is found and refreshed
+            }
+        }
     });
 }

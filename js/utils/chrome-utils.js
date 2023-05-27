@@ -16,17 +16,19 @@ export function clearStorage() {
 
 
 export function getSchedulerMessages() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         chrome.storage.local.get(["schedulerMessages"], (result) => {
             if (chrome.runtime.lastError) {
-                reject([]);
+                getSchedulerMessages().then(r => {
+                    console.log("there is an error try to get messages again")
+                })
             } else {
                 const schedulerMessages = result.schedulerMessages || [];
-                if (schedulerMessages.length > 1){
-                    schedulerMessages.sort((a,b)=>{
-                        return (a.scheduledTime - b.scheduledTime)
-                    })
-                }
+                // if (schedulerMessages.length > 1){
+                //     schedulerMessages.sort((a,b)=>{
+                //         return (a.scheduledTime - b.scheduledTime)
+                //     })
+                // }
                 resolve(schedulerMessages);
             }
         });
@@ -78,3 +80,5 @@ export function sendChromeMessage(action) {
         });
     });
 }
+
+

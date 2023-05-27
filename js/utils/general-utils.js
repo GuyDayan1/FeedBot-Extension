@@ -88,21 +88,25 @@ export function getAllObjectStoreByIndexFromDb(db , key , indexName){
     }))
 }
 export function getChatDetails() {
-    let chatType;
-    let media;
-    let chatId;
-    const element = document.querySelector("[data-testid*='conv-msg']");
-    const dataTestId = element.getAttribute("data-testid");
-    const parts = dataTestId.split("_");
-    chatId = parts[1];
-    if (chatId.includes("@g.us")) {
-        media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
-        chatType = Globals.GROUP_PARAM
-    } else {
-        media = chatId.split("@")[0]
-        chatType = Globals.CONTACT_PARAM
+    try {
+        let chatType;
+        let media;
+        let chatId;
+        const element = document.querySelector("[data-testid*='conv-msg']");
+        const dataTestId = element.getAttribute("data-testid");
+        const parts = dataTestId.split("_");
+        chatId = parts[1];
+        if (chatId.includes("@g.us")) {
+            media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
+            chatType = Globals.GROUP_PARAM
+        } else {
+            media = chatId.split("@")[0]
+            chatType = Globals.CONTACT_PARAM
+        }
+        return {chatType, media, chatId}
+    }catch (error){
+        getChatDetails();
     }
-    return {chatType, media, chatId}
 }
 
 export const addScrollingAbility = (list,maxHeight) => {
