@@ -5,6 +5,7 @@ import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
 import {updateItem} from "./utils/chrome-utils";
+import {getChatDetails} from "./utils/general-utils";
 
 
 let headerElement;
@@ -66,7 +67,7 @@ const headerElementObserver = new MutationObserver(async () => {
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
         })
-        //ChromeUtils.clearStorage()
+        ChromeUtils.clearStorage()
     }
 });
 headerElementObserver.observe(document.body, {childList: true, subtree: true});
@@ -113,7 +114,7 @@ async function initMessagesTimeOut() {
             let currentMessage = relevantMessages[i];
             console.log("set time out to message number: " + currentMessage.id)
             const elapsedTime = currentMessage.scheduledTime - Date.now();
-            await setTimeOutForMessage(currentMessage.id, currentMessage.chatTitleElement.chatName, elapsedTime, currentMessage.warnBeforeSending);
+            await setTimeOutForMessage(currentMessage.id, currentMessage.chatName, elapsedTime, currentMessage.warnBeforeSending);
         }
         if (unSentMessages.length > 0) {
             showUnSentMessagesPopup(unSentMessages)
@@ -255,6 +256,8 @@ async function getSelectedGroupsParticipants() {
 
 }
 
+
+
 async function exportContactsToExcel(selectedOption) {
     const modelStorageDB = await GeneralUtils.getDB("model-storage")
     switch (selectedOption) {
@@ -268,7 +271,7 @@ async function exportContactsToExcel(selectedOption) {
                     return {phoneNumber, phoneBookContactName, whatsappUserName}
                 })
                 const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
-
+                console.log(savedContacts)
                 ExcelUtils.exportToExcelFile(savedContacts, translation.savedContacts, headers)
 
             })
@@ -339,7 +342,7 @@ async function addContactsNames(phones) {
             if (item) {
                 name = item.isAddressBookContact === 1 ? item.name : item.pushname || ''
             }
-            return {phone: phone, name: name}
+            return {phone,name}
         });
     })
     return newArray;
@@ -423,8 +426,7 @@ async function createMessagesFrames(messagesList, relevantMessages) {
 
 async function createMessageFrame(item) {
     const newCellFrame = cellFrameElement.cloneNode(true)
-    const clickListener = (event) => {
-    };
+    const clickListener = (event) => {};
     newCellFrame.addEventListener('click', clickListener);
     newCellFrame.removeEventListener('click', clickListener);
     //frameStyle
@@ -434,23 +436,15 @@ async function createMessageFrame(item) {
     const cellFrameTitleElement = newCellFrame.querySelector('div[data-testid="cell-frame-title"]');
     const firstCellFrameChild = cellFrameTitleElement.childNodes[0];
     const chatTextElement = firstCellFrameChild.childNodes[0]
-    const chatTitleItem = item.chatTitleElement;
     await GeneralUtils.clearChildesFromParent(firstCellFrameChild)
-    chatTextElement.title = chatTitleItem.chatName;
-    chatTextElement.textContent = chatTitleItem.chatName;
-    firstCellFrameChild.appendChild(chatTextElement)
-    let emoji
-    const emojiAttr = chatTitleItem.emojiAttr
-    if (emojiAttr) {
-        emoji = document.createElement('img')
-        emoji.src = emojiAttr.src
-        emoji.alt = emojiAttr.alt;
-        emoji.className = emojiAttr.className
-        emoji.style.backgroundPosition = emojiAttr.backgroundPosition;
-        emoji.draggable = false;
-        chatTextElement.appendChild(emoji)
+    if (item.chatName){
+        chatTextElement.title = item.chatName;
+        chatTextElement.textContent = item.chatName;
+    }else {
+        chatTextElement.title = item.media;
+        chatTextElement.textContent = item.media;
     }
-    // ** message date ** //
+    firstCellFrameChild.appendChild(chatTextElement)
     const detailContainer = newCellFrame.querySelector('div[data-testid="cell-frame-primary-detail"]')
     detailContainer.childNodes[0].textContent = item.dateTimeStr;
     detailContainer.style.color = "#667781"
@@ -560,7 +554,6 @@ async function handleConfirmButtonClick(messageData) {
         if (messageData.messageType === Globals.NEW_MESSAGE) {
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
                 const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
-                console.log("new message id is: " + id)
                 saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
                     showToastMessage('bottom-end', 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
                 }).catch((error) => {
@@ -721,24 +714,22 @@ function simulateTyping(inputElement, text) {
 }
 
 
+
 async function saveMessage(id, message, scheduledTime, dateTimeStr) {
     return new Promise(async (resolve, reject) => {
         try {
+            const modelStorageDB = await GeneralUtils.getDB("model-storage")
             const conversationHeaderElement = document.querySelector('header[data-testid="conversation-header"]');
-            const titleElement = document.querySelector('span[data-testid="conversation-info-header-chat-title"]');
-            const chatName = titleElement.textContent
-            const emojiElement = titleElement.firstElementChild;
-            let emojiAttr = null;
-            if (emojiElement) {
-                const emojiBackgroundPosition = window.getComputedStyle(emojiElement).getPropertyValue('background-position')
-                emojiAttr = {
-                    src: emojiElement.src,
-                    alt: emojiElement.alt,
-                    className: emojiElement.className,
-                    backgroundPosition: emojiBackgroundPosition
-                }
-            }
-            let chatTitleElement = {chatName, emojiAttr}
+            let chatName;
+            await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
+                const result = response.result;
+                const foundItem = result.find(item=>{
+                    let itemPhone = item.id.split('@')[0]
+                    return currentChatDetails.chatId.includes(itemPhone)
+                })
+                const chatDetails = getChatDetails();
+                chatName = foundItem.name ? foundItem.name : chatDetails.media;
+            })
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src;
             const elapsedTime = scheduledTime - Date.now();
             const warnBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
@@ -751,7 +742,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 media: currentChatDetails.media,
                 sendingType: Globals.SCHEDULED_SENDING,
                 imageUrl,
-                chatTitleElement,
+                chatName,
                 dateTimeStr,
                 warnBeforeSending,
                 repeatSending : false,
@@ -927,7 +918,7 @@ const showUnSentMessagesPopup = (unSentMessages) => {
     unSentMessages.forEach((item, index) => {
         let divItem = document.createElement('div')
         divItem.className = "un-sent-message";
-        divItem.innerText = `${index + 1}) ${item.chatTitleElement.chatName} (${item.message})`
+        divItem.innerText = `${index + 1}) ${item.chatName} (${item.message})`
         divItem.style.marginTop = "0.8em"
         container.appendChild(divItem)
     })
@@ -1211,10 +1202,12 @@ const showGroupsModal = (result) => {
         checkboxInput.type = "checkbox"
         checkboxInput.name = item.groupName;
         checkboxInput.value = item.groupId
+        checkboxInput.id = item.groupId;
         let checkboxLabel = document.createElement('label')
         checkboxLabel.classList.add('fb-label');
         checkboxLabel.setAttribute('for', item.groupName)
         checkboxLabel.innerText = item.groupName;
+        checkboxLabel.setAttribute("for" , item.groupId)
         div.appendChild(checkboxInput)
         div.appendChild(checkboxLabel)
         contactsBody.appendChild(div)

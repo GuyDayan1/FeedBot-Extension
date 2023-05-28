@@ -6,8 +6,9 @@ const Papa = require('papaparse');
 
 export function exportToExcelFile(data, sheetName = 'Sheet', headers) {
     const rows = data.map(item => {
-        return [item.phoneNumber, item.phoneBookContactName, item.whatsappUserName];
+        return Object.values(item)
     });
+
     const csvData = Papa.unparse({
         fields: headers,
         data: rows
@@ -15,7 +16,6 @@ export function exportToExcelFile(data, sheetName = 'Sheet', headers) {
 
     const utf8Bom = '\uFEFF'; // Byte Order Mark (BOM) for UTF-8
     const csvContent = utf8Bom + csvData;
-
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
