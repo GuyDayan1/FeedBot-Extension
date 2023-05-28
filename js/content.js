@@ -4,8 +4,7 @@ import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import Swal from "sweetalert2";
-import {updateItem} from "./utils/chrome-utils";
-import {getChatDetails} from "./utils/general-utils";
+
 
 
 let headerElement;
@@ -67,20 +66,25 @@ const headerElementObserver = new MutationObserver(async () => {
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
         })
-        ChromeUtils.clearStorage()
+        //ChromeUtils.clearStorage()
     }
 });
 headerElementObserver.observe(document.body, {childList: true, subtree: true});
 
 
 const loadExtension = async () => {
-    await initTranslations()
+    await initTranslations();
+    await handleActivity()
     await getSvgWhatsAppElement();
     await initMessagesTimeOut();
     await chatListener();
 };
 
+async function handleActivity() {
+    let initialLogin  = ChromeUtils.handleInitialLogin()
+    if (initialLogin.firstLoginDate)
 
+}
 async function initTranslations() {
     let clientLanguage = localStorage.getItem(WhatsAppGlobals.WA_LANGUAGE_PARAM);
     client.language = clientLanguage.includes(Globals.HEBREW_LANGUAGE_PARAM) ? Globals.HEBREW_LANGUAGE_PARAM : Globals.ENGLISH_LANGUAGE_PARAM;
@@ -727,7 +731,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                     let itemPhone = item.id.split('@')[0]
                     return currentChatDetails.chatId.includes(itemPhone)
                 })
-                const chatDetails = getChatDetails();
+                const chatDetails = GeneralUtils.getChatDetails();
                 chatName = foundItem.name ? foundItem.name : chatDetails.media;
             })
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src;
@@ -938,7 +942,7 @@ const showUnSentMessagesPopup = (unSentMessages) => {
             await GeneralUtils.sleep(1)
             for (const item of unSentMessages) {
                 item.repeatSending = true;
-                await updateItem(item)
+                await ChromeUtils.updateItem(item)
                 sendScheduledMessage(item.id).then(() => {
                     console.log("message has been sent number: " + item.id)
                 })

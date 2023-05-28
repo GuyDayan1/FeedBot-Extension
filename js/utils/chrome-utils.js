@@ -35,6 +35,33 @@ export function getSchedulerMessages() {
     });
 }
 
+export function handleInitialLogin() {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get("initialLogin", (result) => {
+            if (chrome.runtime.lastError) {
+                console.log("There was an error retrieving the first activity.");
+            } else {
+                let initialLogin = result.initialLogin;
+                if (!initialLogin) {
+                    initialLogin = {firstLoginDate: new Date()};
+                    chrome.storage.local.set({ initialLogin }, () => {
+                        if (chrome.runtime.lastError) {
+                            console.log("There was an error setting the first activity.");
+                            reject(chrome.runtime.lastError);
+                        } else {
+                            resolve(initialLogin);
+                        }
+                    });
+                } else {
+                    resolve(initialLogin);
+                }
+            }
+        });
+    });
+}
+
+
+
 export function updateSchedulerMessages(updatedSchedulerMessages) {
     return new Promise((resolve) => {
         chrome.storage.local.set({schedulerMessages: updatedSchedulerMessages}).then(() => {
