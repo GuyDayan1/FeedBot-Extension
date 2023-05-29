@@ -3,6 +3,7 @@ import * as GeneralUtils from "./utils/general-utils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
+import * as Errors from "./utils/errors"
 import Swal from "sweetalert2";
 
 
@@ -92,11 +93,13 @@ async function initDataBases() {
     })
 
 }
-async function setClientProperties(){
+
+async function setClientProperties() {
     firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
-    if (!firstLoginDate){
+    if (!firstLoginDate) {
         ChromeUtils.clearStorage();
-        ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getCurrentDateTime()).then(r =>{})
+        ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getCurrentDateTime()).then(r => {
+        })
     }
 }
 
@@ -146,7 +149,7 @@ function chatListener() {
     waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
             waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
-                currentChatDetails = GeneralUtils.getChatDetails();
+                currentChatDetails = await GeneralUtils.getChatDetails()
                 waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 5)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
@@ -276,61 +279,49 @@ async function getSelectedGroupsParticipants() {
 
 
 async function exportContactsToExcel(selectedOption) {
+    let headers;
     switch (selectedOption) {
         case Globals.SAVED_PARAM :
-            await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 1).then((response) => {
-                const result = response.result;
-                const savedContacts = result.map(item => {
-                    const phoneNumber = item.id.split('@')[0];
-                    const phoneBookContactName = item.name || '';
-                    const whatsappUserName = item.pushname || '';
-                    return {phoneNumber, phoneBookContactName, whatsappUserName}
-                })
-                const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
-                console.log(savedContacts)
-                ExcelUtils.exportToExcelFile(savedContacts, translation.savedContacts, headers)
-
+            const savedContacts = allContacts.filter(item => {
+                return item.isAddressBookContact === 1;
+            }).map(item=>{
+                const phoneNumber = item.id.split('@')[0];
+                const phoneBookContactName = item.name || '';
+                const whatsappUserName = item.pushname || '';
+                return {phoneNumber, phoneBookContactName, whatsappUserName}
             })
+            headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
+            ExcelUtils.exportToExcelFile(savedContacts, translation.savedContacts, headers)
             break;
         case Globals.UN_SAVED_PARAM:
-            await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 0).then((response) => {
-                const result = response.result;
-                const unSavedContacts = result.map(item => {
-                    const phoneNumber = item.id.split('@')[0];
-                    const pushName = item.pushname || ''
-                    return {phone: phoneNumber, name: pushName};
-                })
-                const headers = [translation.phoneNumber, translation.contactName]
-                ExcelUtils.exportToExcelFile(unSavedContacts, translation.unSavedContacts, headers)
+            const unSavedContacts = allContacts.filter(item => {
+                return item.isAddressBookContact === 0
+            }).map(item=>{
+                const phoneNumber = item.id.split('@')[0];
+                const pushName = item.pushname || ''
+                return {phoneNumber,pushName}
             })
+            headers = [translation.phoneNumber, translation.contactName]
+            ExcelUtils.exportToExcelFile(unSavedContacts, translation.unSavedContacts, headers)
             break;
         case Globals.ALL_PARAM:
-            await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
-                const result = response.result;
-                const both = result.map(item => {
-                    const phoneNumber = item.id.split('@')[0];
-                    const phoneBookContactName = item.name || '';
-                    const whatsappUserName = item.pushname || '';
-                    return {phoneNumber, phoneBookContactName, whatsappUserName}
-                })
-                const headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
-                ExcelUtils.exportToExcelFile(both, translation.savedAndUnSavedContacts, headers)
+            const both = allContacts.map(item => {
+                const phoneNumber = item.id.split('@')[0];
+                const phoneBookContactName = item.name || '';
+                const whatsappUserName = item.pushname || '';
+                return {phoneNumber, phoneBookContactName, whatsappUserName}
             })
-
+            headers = [translation.phoneNumber, translation.contactName, translation.whatsappUsername]
+            ExcelUtils.exportToExcelFile(both, translation.savedAndUnSavedContacts, headers)
+            break;
     }
 
 }
 
-const getAllParticipantsFromIndexDB = async () => {
-    let items;
-    await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB, 'participant').then((response) => {
-        items = response.result;
-    })
-    return items;
-}
+
 
 async function exportParticipantsByGroupIdsToExcel(groupsId) {
-    let items = await getAllParticipantsFromIndexDB()
+    let items = await GeneralUtils.getAllParticipantsFromIndexDB(modelStorageDB)
     let filteredItems = items.filter(item => {
         return ((groupsId.includes(item.groupId)) && (item.participants.length > 0 || true))
     })
@@ -364,7 +355,7 @@ async function addContactsNames(phones) {
 
 
 async function exportAllGroupsParticipantsToExcel() {
-    let items = await getAllParticipantsFromIndexDB()
+    let items = await GeneralUtils.getAllParticipantsFromIndexDB(modelStorageDB)
     let participants = items.map(item => {
         if (item.participants.length > 0 || true) {
             return item.participants;
@@ -607,6 +598,8 @@ const startBulkSending = (data) => {
         }
         const item = bulkSendingData[index]
         executeContactSending(item).then((result) => {
+            console.log(result.success);
+            console.log(result.error)
             index++;
             sendNextItem()
         }).catch((error) => {
@@ -621,8 +614,6 @@ const startBulkSending = (data) => {
 const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
     let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.SECOND * 60;
-    console.log("relevant: " + relevantMessage)
-    console.log("item: ", item)
     if (relevantMessage || item.repeatSending) {
         client.sendingType = Globals.SENDING_STATE
         if (client.state === Globals.SENDING_STATE) {
@@ -639,18 +630,12 @@ const sendScheduledMessage = async (id) => {
                 executeContactSending(item).then(res => {
                     client.state = Globals.UNUSED_STATE;
                     client.sendingType = "";
-                    if (res.success) {
-                        ChromeUtils.updateItem(res.newItem)
-                    } else {
-                        console.log(res.error)
-                    }
                 })
             }
 
         }
     } else {
-        const unSentMessages = []
-        unSentMessages.push(item)
+        const unSentMessages = [item]
         showUnSentMessagesPopup(unSentMessages)
     }
 }
@@ -658,43 +643,51 @@ const sendScheduledMessage = async (id) => {
 function executeContactSending(item) {
     return new Promise((async (resolve, reject) => {
         let element = document.createElement("a");
-        element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
+        element.href = `https://api.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
         element.id = "mychat";
         document.body.append(element);
         let p1 = document.getElementById("mychat");
         p1.click();
-        const waitForChatInterval = setInterval(() => {
-            const chatDetails = GeneralUtils.getChatDetails();
-            if (chatDetails.chatId === item.chatId) {
-                clearInterval(waitForChatInterval)
-                const waitForTextInterval = setInterval(async () => {
-                    const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
-                    if (composeBoxElement) {
-                        let textInput = document.querySelectorAll('[class*="text-input"]')[1]
-                        let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
-                        if (textContext === item.message) {
-                            clearInterval(waitForTextInterval)
-                            waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', 2500)
-                                .then(sendElement => {
-                                    sendElement.click();
-                                    p1.remove();
-                                    item.messageSent = true;
-                                    resolve({success: true, newItem: item})
-                                })
-                                .catch(error => {
-                                    reject({success: false, error: error});
-                                });
+        const waitForChatInterval = setInterval(async () => {
+            const errorPopup = document.querySelector('div[data-testid="confirm-popup"]')
+            if (errorPopup){
+                resolve({success:false , error:Errors.INVALID_PHONE})
+            }else {
+                const chatDetails = await GeneralUtils.getChatDetails();
+                if (chatDetails.chatId) {
+                    if (chatDetails.chatId === item.chatId) {
+                        clearInterval(waitForChatInterval)
+                        const waitForTextInterval = setInterval(async () => {
+                            const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
+                            if (composeBoxElement) {
+                                let textInput = document.querySelectorAll('[class*="text-input"]')[1]
+                                let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
+                                if (textContext === item.message) {
+                                    clearInterval(waitForTextInterval)
+                                    waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', 2500)
+                                        .then(sendElement => {
+                                            sendElement.click();
+                                            p1.remove();
+                                            item.messageSent = true;
+                                            ChromeUtils.updateItem(item)
+                                            resolve({success: true, error: null})
+                                        })
+                                        .catch(error => {
+                                            reject({success: false, error: Errors.ELEMENT_NOT_FOUND});
+                                        });
 
-                        } else {
-                            GeneralUtils.simulateKeyPress('keydown', "Escape");
-                            console.log("click on escape")
-                            await GeneralUtils.sleep(1)
-                            p1.click();
-                        }
+                                } else {
+                                    GeneralUtils.simulateKeyPress('keydown', "Escape");
+                                    console.log("click on escape")
+                                    await GeneralUtils.sleep(1)
+                                    p1.click();
+                                }
+                            }
+                        }, 10)
                     }
-                }, 50)
+                }
             }
-        }, 300)
+        }, 100)
 
     }))
 }

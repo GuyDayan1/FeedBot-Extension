@@ -37,7 +37,6 @@ export function getSchedulerMessages() {
 
 
 export function getFromLocalStorage(key){
-    console.log("try to get key: " ,key)
     return new Promise(((resolve,reject) => {
         chrome.storage.local.get(key , (result)=>{
             console.log(result)

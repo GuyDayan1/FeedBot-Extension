@@ -7,7 +7,7 @@ export async function clearChildesFromParent(parentNode) {
     }
 }
 
-export const areArrayEqual = (arr1, arr2)=>{
+export const areArrayEqual = (arr1, arr2) => {
     for (let i = 0; i < arr1.length; i++) {
         if (arr1[i] !== arr2[i]) {
             return false;
@@ -23,13 +23,14 @@ export function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
-export const simulateKeyPress = (type,keyName) => {    //type = which action to do simulate  , keyName = which key to action
+export const simulateKeyPress = (type, keyName) => {    //type = which action to do simulate  , keyName = which key to action
     document.dispatchEvent(new KeyboardEvent(type, {'key': keyName}));
 }
 
 export function listFadeIn(element, duration) {
     let start = performance.now();
     element.style.opacity = "0";
+
     function update() {
         let now = performance.now();
         let time = Math.min(1, (now - start) / duration);
@@ -38,6 +39,7 @@ export function listFadeIn(element, duration) {
             requestAnimationFrame(update);
         }
     }
+
     requestAnimationFrame(update);
 }
 
@@ -54,18 +56,27 @@ export function getDB(dbName) {
         };
     }))
 }
-export function getObjectStoresByKeyFromDB(db , key) {
+
+export function getObjectStoresByKeyFromDB(db, key) {
     return new Promise(((resolve) => {
         let transaction = db.transaction(key, 'readonly')
         let objectStore = transaction.objectStore(key);
         let getAllRequest = objectStore.getAll();
-        getAllRequest.onsuccess = ()=>{
+        getAllRequest.onsuccess = () => {
             resolve(getAllRequest)
         }
     }))
 }
 
-export function getObjectStoreByIndexFromDb(db , key , indexName , query){
+export const getAllParticipantsFromIndexDB = async (modelStorageDB) => {
+    let items;
+    await getObjectStoresByKeyFromDB(modelStorageDB, 'participant').then((response) => {
+        items = response.result;
+    })
+    return items;
+}
+
+export function getObjectStoreByIndexFromDb(db, key, indexName, query) {
     return new Promise((async (resolve) => {
         let transaction = db.transaction(key, 'readonly');
         let objectStore = transaction.objectStore(key);
@@ -76,7 +87,8 @@ export function getObjectStoreByIndexFromDb(db , key , indexName , query){
         };
     }))
 }
-export function getAllObjectStoreByIndexFromDb(db , key , indexName){
+
+export function getAllObjectStoreByIndexFromDb(db, key, indexName) {
     return new Promise((async (resolve) => {
         let transaction = db.transaction(key, 'readonly');
         let objectStore = transaction.objectStore(key);
@@ -87,34 +99,46 @@ export function getAllObjectStoreByIndexFromDb(db , key , indexName){
         };
     }))
 }
+
 export function getChatDetails() {
-    try {
-        let chatType;
-        let media;
-        let chatId;
-        const element = document.querySelector("[data-testid*='conv-msg']");
-        const dataTestId = element.getAttribute("data-testid");
-        const parts = dataTestId.split("_");
-        chatId = parts[1];
-        if (chatId.includes("@g.us")) {
-            media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
-            chatType = Globals.GROUP_PARAM
-        } else {
-            media = chatId.split("@")[0]
-            chatType = Globals.CONTACT_PARAM
-        }
-        return {chatType, media, chatId}
-    }catch (error){
-        console.log("error in get chat details")
-    }
+    return new Promise((resolve, reject) => {
+        let tries = 0;
+        const intervalId = setInterval(() => {
+            const element = document.querySelector("[data-testid*='conv-msg']");
+            if (element) {
+                const dataTestId = element.getAttribute("data-testid");
+                const parts = dataTestId.split("_");
+                const chatId = parts[1];
+                let chatType, media;
+                if (chatId.includes("@g.us")) {
+                    media = document.querySelector('span[data-testid="conversation-info-header-chat-title"]').textContent;
+                    chatType = Globals.GROUP_PARAM;
+                } else {
+                    media = chatId.split("@")[0];
+                    chatType = Globals.CONTACT_PARAM;
+                }
+                clearInterval(intervalId);
+                resolve({ chatType, media, chatId });
+            } else {
+                tries++;
+                if (tries >= 50) {
+                    clearInterval(intervalId);
+                    reject(new Error("Failed to get chat details."));
+                }
+            }
+        }, 50);
+    }).catch(error => {
+        console.log("Error in getChatDetails:", error);
+    });
 }
 
-export const addScrollingAbility = (list,maxHeight) => {
+
+export const addScrollingAbility = (list, maxHeight) => {
     list.style.height = maxHeight
     list.style.overflowY = "scroll"
 }
 
-export function getCurrentDateTime(){
+export function getCurrentDateTime() {
     const currentDate = new Date();
     const day = String(currentDate.getDate()).padStart(2, '0');
     const month = String(currentDate.getMonth() + 1).padStart(2, '0'); // Months are zero-based
@@ -154,7 +178,7 @@ export function handleFileSelect(event) {
     }
 }
 
-export function createTable(headers,data) {
+export function createTable(headers, data) {
     const table = document.createElement('table');
     table.classList.add('fb-table');
     const thead = document.createElement('thead');
@@ -190,12 +214,12 @@ export function createTable(headers,data) {
 export function formatPhoneNumber(phoneNumber, formatType) {
     let newPhone = phoneNumber.trim();
     newPhone = newPhone.replace(/\D/g, ''); // Remove any non-digit characters
-    switch (formatType){
+    switch (formatType) {
         case ISRAEL_PARAM:
-            if (newPhone.startsWith('05')){
+            if (newPhone.startsWith('05')) {
                 newPhone = ISR_PREFIX + newPhone.slice(1)
             }
-            if (newPhone.startsWith('5')){
+            if (newPhone.startsWith('5')) {
                 newPhone = ISR_PREFIX + newPhone;
             }
     }
