@@ -35,31 +35,36 @@ export function getSchedulerMessages() {
     });
 }
 
-export function handleInitialLogin() {
-    return new Promise((resolve, reject) => {
-        chrome.storage.local.get("initialLogin", (result) => {
-            if (chrome.runtime.lastError) {
-                console.log("There was an error retrieving the first activity.");
-            } else {
-                let initialLogin = result.initialLogin;
-                if (!initialLogin) {
-                    initialLogin = {firstLoginDate: new Date()};
-                    chrome.storage.local.set({ initialLogin }, () => {
-                        if (chrome.runtime.lastError) {
-                            console.log("There was an error setting the first activity.");
-                            reject(chrome.runtime.lastError);
-                        } else {
-                            resolve(initialLogin);
-                        }
-                    });
-                } else {
-                    resolve(initialLogin);
-                }
+
+export function getFromLocalStorage(key){
+    console.log("try to get key: " ,key)
+    return new Promise(((resolve,reject) => {
+        chrome.storage.local.get(key , (result)=>{
+            console.log(result)
+            if (chrome.runtime.lastError){
+                console.log("There was an error retrieving the key."  , key);
+                reject(chrome.runtime.lastError);
+            }else {
+                let item = result[key];
+                resolve(item)
             }
-        });
-    });
+        })
+    }))
 }
 
+export function updateLocalStorage(key,value) {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.set({[key]: value}, () => {
+            if (chrome.runtime.lastError) {
+                console.log("There was an error updating the item:", key);
+                reject(chrome.runtime.lastError);
+            } else {
+                resolve(value);
+            }
+        });
+    })
+
+}
 
 
 export function updateSchedulerMessages(updatedSchedulerMessages) {
