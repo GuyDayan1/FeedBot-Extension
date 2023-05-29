@@ -1,6 +1,9 @@
+let contentScriptLoaded = false;
+
+// Listen for tab updates
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (tab.url.includes('web.whatsapp.com')) {
-        console.log(new Date() , ": tab id: " ,tabId , "change info " ,changeInfo , "tab " , tab)
+    if (tab.url.includes('web.whatsapp.com') && changeInfo.status === 'complete') {
+        contentScriptLoaded = true;
     }
 });
 
@@ -17,12 +20,15 @@ function getAllTabs() {
 
 
 /// check every tab clicked which tab is active
-// chrome.tabs.onActivated.addListener((activeInfo) => {
-//     const tabId = activeInfo.tabId;
-//     chrome.tabs.get(tabId, (tab) => {
-//         console.log(tab);
-//     });
-// });
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    const tabId = activeInfo.tabId;
+    chrome.tabs.get(tabId, (tab) => {
+        console.log(tab)
+        if (tab.url.includes('web.whatsapp.com')) {
+            chrome.tabs.sendMessage(tabId, { action: 'check-unsent-messages' });
+        }
+    });
+});
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

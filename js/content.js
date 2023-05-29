@@ -31,6 +31,15 @@ let feedBotListOptions = [];
 let excelFeaturesListOptions = []
 
 
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'check-unsent-messages') {
+        if (unSentMessages.length > 0){
+            showUnSentMessagesPopup(unSentMessages)
+        }
+    }
+});
+
+
 const headerElementObserver = new MutationObserver(async () => {
     headerElement = document.querySelector(WhatsAppGlobals.chatListHeaderElement);
     if (headerElement !== null) {
@@ -112,6 +121,7 @@ async function initTranslations() {
     const response = await fetch(htmlUrl);
     translation = await response.json();
 }
+
 
 
 async function initMessagesTimeOut() {
@@ -636,8 +646,7 @@ const sendScheduledMessage = async (id) => {
 
         }
     } else {
-        const unSentMessages = [item]
-        showUnSentMessagesPopup(unSentMessages)
+        unSentMessages.push(item)
     }
 }
 
