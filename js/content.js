@@ -17,6 +17,7 @@ let feedBotIcon;
 let emptyMessagesAlert;
 let firstLoginDate;
 let modelStorageDB;
+const unSentMessages = []
 let addressBookContacts;
 let nonAddressBookContacts;
 let allContacts;
@@ -643,7 +644,7 @@ const sendScheduledMessage = async (id) => {
 function executeContactSending(item) {
     return new Promise((async (resolve, reject) => {
         let element = document.createElement("a");
-        element.href = `https://api.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
+        element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
         element.id = "mychat";
         document.body.append(element);
         let p1 = document.getElementById("mychat");
@@ -670,6 +671,7 @@ function executeContactSending(item) {
                                             p1.remove();
                                             item.messageSent = true;
                                             ChromeUtils.updateItem(item)
+                                            setTimeout(()=>{},500)
                                             resolve({success: true, error: null})
                                         })
                                         .catch(error => {
@@ -683,11 +685,11 @@ function executeContactSending(item) {
                                     p1.click();
                                 }
                             }
-                        }, 10)
+                        }, 200)
                     }
                 }
             }
-        }, 100)
+        }, 200)
 
     }))
 }
@@ -727,7 +729,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
             })
             let chatName = foundItem.name ? foundItem.name : currentChatDetails.media || '';
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src;
-            const elapsedTime = scheduledTime - Date.now();
+            const elapsedTime = scheduledTime - new Date().getTime();
             const warnBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
             const data = {
                 id,
@@ -1114,7 +1116,11 @@ const showSchedulerModal = async (data) => {
     addSelectOptions(minuteDropdown, "minute")
     if (data.type === Globals.NEW_MESSAGE) {
         let currentDate = new Date();
-        dateInput.value = currentDate.toISOString().slice(0, 10);
+        let year = currentDate.getFullYear();
+        let month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        let day = String(currentDate.getDate()).padStart(2, '0');
+        dateInput.value = `${year}-${month}-${day}`;
+        // dateInput.value = currentDate.toISOString().slice(0, 10);
         hourDropdown.selectedIndex = currentDate.getHours();
         minuteDropdown.selectedIndex = currentDate.getMinutes()
         let textInput = document.querySelectorAll('[class*="text-input"]')[1];
