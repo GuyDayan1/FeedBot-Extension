@@ -646,7 +646,8 @@ const sendScheduledMessage = async (id) => {
 
         }
     } else {
-        unSentMessages.push(item)
+        // TODO handle message when non-active user
+        // unSentMessages.push(item)
     }
 }
 
@@ -680,7 +681,7 @@ function executeContactSending(item) {
                                             p1.remove();
                                             item.messageSent = true;
                                             ChromeUtils.updateItem(item)
-                                            setTimeout(()=>{},500)
+                                            setTimeout(()=>{},Globals.SECOND)
                                             resolve({success: true, error: null})
                                         })
                                         .catch(error => {
