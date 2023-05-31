@@ -35,6 +35,24 @@ export function getSchedulerMessages() {
     });
 }
 
+export function getActiveSchedulerMessages(){
+    return new Promise((resolve) => {
+        chrome.storage.local.get(["schedulerMessages"], (result) => {
+            if (chrome.runtime.lastError) {
+                getSchedulerMessages().then(r => {
+                    console.log("there is an error try to get messages again")
+                })
+            } else {
+                const schedulerMessages = result.schedulerMessages || [];
+                const activeMessages = schedulerMessages.map(item=>{
+                    return item.messageSent === false && item.deleted === false
+                })
+                resolve(activeMessages);
+            }
+        });
+    });
+}
+
 
 export function getFromLocalStorage(key){
     return new Promise(((resolve,reject) => {

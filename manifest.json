@@ -11,7 +11,7 @@
     "page" : "html/options.html"  ,
     "open_in_tab" : false
   },
-  "permissions": [ "identity", "identity.email", "storage", "unlimitedStorage", "contextMenus" ,"tabs", "scripting","activeTab"],
+  "permissions": [ "identity", "storage", "unlimitedStorage", "contextMenus" ,"tabs", "scripting","activeTab"],
   "host_permissions": ["https://web.whatsapp.com/*"],
   "content_scripts": [
     {

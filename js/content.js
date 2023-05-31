@@ -17,7 +17,6 @@ let feedBotIcon;
 let emptyMessagesAlert;
 let firstLoginDate;
 let modelStorageDB;
-const unSentMessages = []
 let addressBookContacts;
 let nonAddressBookContacts;
 let allContacts;
@@ -31,13 +30,16 @@ let feedBotListOptions = [];
 let excelFeaturesListOptions = []
 
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'check-unsent-messages') {
-        if (unSentMessages.length > 0){
-            showUnSentMessagesPopup(unSentMessages)
-        }
-    }
-});
+// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+//     if (message.action === 'active-tab') {
+//         console.log('Received message:', message);
+//         checkForUnSentMessages().then(r => {
+//             console.log("finish to check")
+//         })
+//     }
+// });
+
+
 
 
 const headerElementObserver = new MutationObserver(async () => {
@@ -130,7 +132,7 @@ async function initMessagesTimeOut() {
             await clearAllItemsTimeOuts();
         }
         let schedulerMessages = await ChromeUtils.getSchedulerMessages();
-        const now = Date.now();
+        const now =new Date().getTime();
         const relevantMessages = [];
         const unSentMessages = [];
         for (let i = 0; i < schedulerMessages.length; i++) {
@@ -154,7 +156,22 @@ async function initMessagesTimeOut() {
         }
     })
 }
-
+async function checkForUnSentMessages() {
+    let schedulerMessages = await ChromeUtils.getSchedulerMessages();
+    const now = new Date().getTime();
+    const unSentMessages = [];
+    for (let i = 0; i < schedulerMessages.length; i++) {
+        const item = schedulerMessages[i];
+        if (!item.messageSent && !item.deleted) {
+            if (item.scheduledTime < now) {
+                unSentMessages.push(item);
+            }
+        }
+    }
+    if (unSentMessages.length > 0) {
+        showUnSentMessagesPopup(unSentMessages)
+    }
+}
 
 function chatListener() {
     waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
@@ -625,7 +642,7 @@ const startBulkSending = (data) => {
 const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
     let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.SECOND * 60;
-    if (relevantMessage || item.repeatSending) {
+    if ((relevantMessage || item.repeatSending) && (!item.messageSent && !item.deleted)) {
         client.sendingType = Globals.SENDING_STATE
         if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
@@ -645,10 +662,10 @@ const sendScheduledMessage = async (id) => {
             }
 
         }
-    } else {
-        // TODO handle message when non-active user
-        // unSentMessages.push(item)
+    }else {
+        item.repeatSending = true;
     }
+
 }
 
 function executeContactSending(item) {
@@ -738,7 +755,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 return currentChatDetails.chatId.includes(itemPhone)
             })
             let chatName = foundItem.name ? foundItem.name : currentChatDetails.media || '';
-            const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src;
+            const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src || chrome.runtime.getURL("images/default-user.png");
             const elapsedTime = scheduledTime - new Date().getTime();
             const warnBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
             const data = {
@@ -943,7 +960,6 @@ const showUnSentMessagesPopup = (unSentMessages) => {
             console.log("confirm")
             await GeneralUtils.sleep(1)
             for (const item of unSentMessages) {
-                item.repeatSending = true;
                 await ChromeUtils.updateItem(item)
                 sendScheduledMessage(item.id).then(() => {
                     console.log("message has been sent number: " + item.id)

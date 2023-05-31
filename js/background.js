@@ -1,34 +1,24 @@
-let contentScriptLoaded = false;
-
-// Listen for tab updates
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (tab.url.includes('web.whatsapp.com') && changeInfo.status === 'complete') {
-        contentScriptLoaded = true;
-    }
-});
-
-function getAllTabs() {
-    console.log("all tabs:")
-    chrome.tabs.query({}, function(tabs) {
-        for (let i = 0; i < tabs.length; i++) {
-            const tab = tabs[i];
-            console.log(tab)
-            // Perform actions with each active tab
-        }
-    });
-}
 
 
-/// check every tab clicked which tab is active
-chrome.tabs.onActivated.addListener((activeInfo) => {
-    const tabId = activeInfo.tabId;
-    chrome.tabs.get(tabId, (tab) => {
-        console.log(tab)
-        if (tab.url.includes('web.whatsapp.com')) {
-            chrome.tabs.sendMessage(tabId, { action: 'check-unsent-messages' });
-        }
-    });
-});
+
+
+// function getAllTabs() {
+//     console.log("all tabs:")
+//     chrome.tabs.query({}, function(tabs) {
+//         for (let i = 0; i < tabs.length; i++) {
+//             const tab = tabs[i];
+//             console.log(tab)
+//             // Perform actions with each active tab
+//         }
+//     });
+// }
+//
+//
+// async function getCurrentActiveTab() {
+//     let queryOptions = { active: true, lastFocusedWindow: true };
+//     let [tab] = await chrome.tabs.query(queryOptions);
+//     return tab;
+// }
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
