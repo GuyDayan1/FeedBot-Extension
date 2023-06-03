@@ -9,7 +9,7 @@ import Swal from "sweetalert2";
 
 let headerElement;
 let connected = false;
-let currentChatDetails = {chatType: "", media: "", chatId: ""}
+// let currentChatDetails = {chatType: "", media: "", chatId: ""}
 let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
 let bulkSendingData;
 let feedBotIcon;
@@ -30,14 +30,7 @@ let feedBotListOptions = [];
 let excelFeaturesListOptions = []
 
 
-// chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-//     if (message.action === 'active-tab') {
-//         console.log('Received message:', message);
-//         checkForUnSentMessages().then(r => {
-//             console.log("finish to check")
-//         })
-//     }
-// });
+
 
 
 
@@ -110,8 +103,7 @@ async function setClientProperties() {
     firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
     if (!firstLoginDate) {
         ChromeUtils.clearStorage();
-        ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getCurrentDateTime()).then(r => {
-        })
+        await ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getCurrentDateTime())
     }
 }
 
@@ -147,7 +139,6 @@ async function initMessagesTimeOut() {
         }
         for (let i = 0; i < relevantMessages.length; i++) {
             let currentMessage = relevantMessages[i];
-            console.log("set time out to message number: " + currentMessage.id)
             const elapsedTime = currentMessage.scheduledTime - Date.now();
             await setTimeOutForMessage(currentMessage.id, currentMessage.chatName, elapsedTime, currentMessage.warnBeforeSending);
         }
@@ -177,7 +168,7 @@ function chatListener() {
     waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
             waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
-                currentChatDetails = await GeneralUtils.getChatDetails()
+                let currentChatDetails = await GeneralUtils.getChatDetails()
                 waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 5)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
@@ -204,9 +195,6 @@ async function clearAllItemsTimeOuts() {
 function clearSpecificItem(id) {
     clearTimeout(activeMessagesTimeout[id])
     delete activeMessagesTimeout[id]
-    console.log("active messages timeouts:")
-    console.log(activeMessagesTimeout)
-
 }
 
 
@@ -401,9 +389,7 @@ async function exportAllGroupsParticipantsToExcel() {
 function refreshScheduledMessagesList() {
     let schedulerListContainer = document.getElementsByClassName('scheduler-messages-container')[0];
     let messagesList = schedulerListContainer.querySelector('.messages-list')
-    if (messagesList) {
-        messagesList.remove()
-    }
+    if (messagesList) {messagesList.remove()}
     setTimeout(async () => {
         let newMessagesList = await createMessagesList();
         schedulerListContainer.appendChild(newMessagesList);
@@ -592,12 +578,7 @@ const startBulkSending = (data) => {
         }
         const item = bulkSendingData[index]
         executeContactSending(item).then((result) => {
-            console.log(result.success);
-            console.log(result.error)
-            index++;
-            sendNextItem()
-        }).catch((error) => {
-            console.error("Error sending bulk message number: " + item.id, error);
+            //console.log(JSON.stringify(result))
             index++;
             sendNextItem()
         })
@@ -609,19 +590,17 @@ const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
     let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.SECOND * 60;
     if ((relevantMessage || item.repeatSending) && (!item.messageSent && !item.deleted)) {
-        client.sendingType = Globals.SENDING_STATE
         if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
                 if (client.state === Globals.UNUSED_STATE) {
                     clearInterval(sendingInterval)
-                    console.log("clear interval start to send item number " + id)
                     sendScheduledMessage(id)
                 }
-            }, 50)
+            }, 100)
         } else {
             client.state = Globals.SENDING_STATE;
             if (item.chatType === Globals.CONTACT_PARAM) {
-                executeContactSending(item).then(res => {
+                executeContactSending(item).then(res=>{
                     client.state = Globals.UNUSED_STATE;
                     client.sendingType = "";
                 })
@@ -629,65 +608,72 @@ const sendScheduledMessage = async (id) => {
 
         }
     }else {
-        item.repeatSending = true;
+        if (!item.deleted){
+            item.repeatSending = true;
+            await ChromeUtils.updateItem(item);
+        }
     }
 
 }
 
 function executeContactSending(item) {
-    return new Promise((async (resolve, reject) => {
-        let element = document.createElement("a");
+    return new Promise(async (resolve, reject) => {
+        const element = document.createElement("a");
         element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
         element.id = "mychat";
         document.body.append(element);
         let p1 = document.getElementById("mychat");
         p1.click();
         const waitForChatInterval = setInterval(async () => {
-            const errorPopup = document.querySelector('div[data-testid="confirm-popup"]')
-            if (errorPopup){
-                resolve({success:false , error:Errors.INVALID_PHONE})
-            }else {
+            let tries = 0;
+            const popup = document.querySelector('div[data-testid="confirm-popup"]');
+            if (popup && tries > 10) {
+                p1.remove();
+                resolve({ success: false, error: Errors.INVALID_PHONE });
+                clearInterval(waitForChatInterval);
+            } else {
                 const chatDetails = await GeneralUtils.getChatDetails();
-                if (chatDetails.chatId) {
-                    if (chatDetails.chatId === item.chatId) {
-                        clearInterval(waitForChatInterval)
-                        const waitForTextInterval = setInterval(async () => {
-                            const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
-                            if (composeBoxElement) {
-                                let textInput = document.querySelectorAll('[class*="text-input"]')[1]
-                                let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
-                                if (textContext === item.message) {
-                                    clearInterval(waitForTextInterval)
-                                    waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', 2500)
-                                        .then(sendElement => {
-                                            sendElement.click();
-                                            p1.remove();
-                                            item.messageSent = true;
-                                            ChromeUtils.updateItem(item)
-                                            setTimeout(()=>{},Globals.SECOND/2)
-                                            resolve({success: true, error: null})
-                                        })
-                                        .catch(error => {
-                                            reject({success: false, error: Errors.ELEMENT_NOT_FOUND});
-                                        });
-
-                                } else {
-                                    let chatBody =document.querySelector(WhatsAppGlobals.conversationBodyElement)
-                                    if (chatBody){chatBody.click();}
-                                    GeneralUtils.simulateKeyPress('keydown', "Escape");
-                                    console.log("click on escape")
-                                    await GeneralUtils.sleep(1)
-                                    p1.click()
+                if (chatDetails.chatId === item.chatId) {
+                    clearInterval(waitForChatInterval);
+                    const waitForTextInterval = setInterval(async () => {
+                        const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
+                        if (composeBoxElement) {
+                            let textInput = document.querySelectorAll('[class*="text-input"]')[1];
+                            let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
+                            if (textContext === item.message) {
+                                clearInterval(waitForTextInterval);
+                                try {
+                                    const sendElement = await waitForNodeWithTimeOut(
+                                        document.body,
+                                        'span[data-testid="send"]',
+                                        Globals.SECOND * 5
+                                    );
+                                    sendElement.click();
+                                    p1.remove();
+                                    item.messageSent = true;
+                                    await ChromeUtils.updateItem(item);
+                                    resolve({ success: true, error: null });
+                                } catch (error) {
+                                    reject({ success: false, error: Errors.ELEMENT_NOT_FOUND });
                                 }
+                            } else {
+                                let chatBody = document.querySelector(WhatsAppGlobals.conversationBodyElement);
+                                if (chatBody) {chatBody.click();}
+                                GeneralUtils.simulateKeyPress('keydown', "Escape");
+                                await GeneralUtils.sleep(1);
+                                p1.click();
                             }
-                        }, 200)
-                    }
+                        }
+                    }, 200);
+                } else {
+                    // Handle the case when chat details don't match
                 }
             }
-        }, 200)
-
-    }))
+            tries++;
+        }, 200);
+    });
 }
+
 
 async function searchingForGroup(media) {
     let side = document.getElementById('pane-side')
@@ -717,6 +703,7 @@ function simulateTyping(inputElement, text) {
 async function saveMessage(id, message, scheduledTime, dateTimeStr) {
     return new Promise(async (resolve, reject) => {
         try {
+            let currentChatDetails = await GeneralUtils.getChatDetails()
             const conversationHeaderElement = document.querySelector(WhatsAppGlobals.conversationHeaderElement);
             const foundItem = allContacts.find(item => {
                 let itemPhone = item.id.split('@')[0]
@@ -744,9 +731,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
             };
             const currentSchedulerMessages = await ChromeUtils.getSchedulerMessages();
             const updatedSchedulerMessages = [...currentSchedulerMessages, data];
-            ChromeUtils.updateSchedulerMessages(updatedSchedulerMessages).then(r => {
-                console.log(r)
-            });
+            await ChromeUtils.updateSchedulerMessages(updatedSchedulerMessages)
             await setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending);
             resolve(true);
         } catch (error) {
@@ -808,7 +793,7 @@ function setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending) {
             })
         }, elapsedTime)
     }
-    console.log('active timeouts: ', activeMessagesTimeout)
+
 }
 
 
@@ -884,7 +869,7 @@ function showUserTypingAlert(timer, contactName) {
         }
     }).then((result) => {
         if (Swal.DismissReason.timer) {
-            console.log('I was closed by the timer')
+            //console.log('I was closed by the timer')
         }
     })
 }
@@ -929,8 +914,7 @@ const showUnSentMessagesPopup = (unSentMessages) => {
             for (const item of unSentMessages) {
                 item.repeatSending = true;
                 await ChromeUtils.updateItem(item);
-                await sendScheduledMessage(item.id);
-                console.log("message has been sent number: " + item.id);
+                await sendScheduledMessage(item.id)
             }
         }
 
@@ -1238,7 +1222,7 @@ const showGroupsModal = (result) => {
             const checkedCheckboxes = checkboxesArray.filter(checkbox => checkbox.checked);
             const checkedValues = checkedCheckboxes.map(checkbox => checkbox.value);
             if (checkedValues.length > 0) {
-                console.log('Selected option:', checkedValues);
+                //console.log('Selected option:', checkedValues);
                 return checkedValues;
             } else {
                 // Show an error message and prevent modal from closing
@@ -1250,7 +1234,7 @@ const showGroupsModal = (result) => {
         if (result.isConfirmed) {
             const groupsId = result.value;
             exportParticipantsByGroupIdsToExcel(groupsId).then(r => {
-                console.log("export successfully")
+                //console.log("export successfully")
             })
         }
     });
@@ -1326,7 +1310,6 @@ const showContactsModal = () => {
                 }
             }
             if (selectedOption) {
-                console.log('Selected option:', selectedOption);
                 return selectedOption;
             } else {
                 // Show an error message and prevent modal from closing
@@ -1338,7 +1321,7 @@ const showContactsModal = () => {
         if (result.isConfirmed) {
             const selectedOption = result.value;
             exportContactsToExcel(selectedOption).then(r => () => {
-                console.log(selectedOption)
+                //console.log(selectedOption)
             })
         }
     });

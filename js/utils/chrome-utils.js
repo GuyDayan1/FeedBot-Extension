@@ -44,7 +44,7 @@ export function getActiveSchedulerMessages(){
                 })
             } else {
                 const schedulerMessages = result.schedulerMessages || [];
-                const activeMessages = schedulerMessages.map(item=>{
+                const repeatSending = schedulerMessages.filter(item=>{
                     return item.messageSent === false && item.deleted === false
                 })
                 resolve(activeMessages);

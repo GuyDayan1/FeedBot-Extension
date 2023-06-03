@@ -1,6 +1,24 @@
 
+chrome.tabs.onActivated.addListener(function(activeInfo) {
+    chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+        const activeTab = tabs[0];
+        if (activeTab.url.includes('web.whatsapp.com')) {
+            checkForRepeatMessages()
+        }
+    });
+});
 
+function checkForRepeatMessages(){
+        chrome.storage.local.get(["schedulerMessages"], (result) => {
+                const schedulerMessages = result.schedulerMessages || [];
+                const repeatMessages = schedulerMessages.filter(item=>{
+                    return (item.messageSent === false && item.deleted === false && item.repeatSending)
+                })
+                if (repeatMessages.length > 0){refreshWhatsAppTab()}
 
+        });
+
+}
 
 // function getAllTabs() {
 //     console.log("all tabs:")
@@ -28,7 +46,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         getHtmlFile(htmlFileName)
             .then(htmlFile => {sendResponse({ data: htmlFile });})
             .catch(error => {
-                console.error(error);
                 sendResponse({ error: 'Failed to fetch HTML file' });
             });
         return true;
@@ -54,14 +71,10 @@ function getHtmlFile(htmlFileName) {
     });
 }
 function refreshWhatsAppTab() {
-    chrome.tabs.query({}, function(tabs) {
-        for (let i = 0; i < tabs.length; i++) {
-            const tab = tabs[i];
-            console.log(tab)
-            if (tab.url.includes('whatsapp.com') || tab.title.includes('WhatsApp')) {
-                chrome.tabs.reload(tab.id);
-                break; // Stop iterating once the WhatsApp tab is found and refreshed
-            }
+    chrome.tabs.query({ url: 'https://web.whatsapp.com/*' }, function (tabs) {
+        if (tabs.length > 0) {
+            const tabId = tabs[0].id;
+            chrome.tabs.reload(tabId);
         }
     });
 }
