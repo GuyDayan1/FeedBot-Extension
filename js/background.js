@@ -22,25 +22,27 @@
 
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'get-bulk-sending-modal') {
-        getHtmlFile('bulksendmodal')
-            .then(htmlFile => {
-                sendResponse({ data: htmlFile });
-            })
+    let data = request.data;
+    if (data.action === 'get-html-file'){
+        let htmlFileName = data.fileName;
+        getHtmlFile(htmlFileName)
+            .then(htmlFile => {sendResponse({ data: htmlFile });})
             .catch(error => {
                 console.error(error);
                 sendResponse({ error: 'Failed to fetch HTML file' });
             });
         return true;
     }
+
+
     if (request.action === "refresh"){
         refreshWhatsAppTab();
     }
 });
 
-function getHtmlFile(modalName) {
+function getHtmlFile(htmlFileName) {
     return new Promise((resolve, reject) => {
-        const htmlUrl = chrome.runtime.getURL(`html/${modalName}.html`);
+        const htmlUrl = chrome.runtime.getURL(`html/${htmlFileName}.html`);
         fetch(htmlUrl)
             .then(response => response.text())
             .then(html => {

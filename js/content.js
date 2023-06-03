@@ -8,12 +8,12 @@ import Swal from "sweetalert2";
 
 
 let headerElement;
-let cellFrameElement;
 let connected = false;
 let currentChatDetails = {chatType: "", media: "", chatId: ""}
 let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
 let bulkSendingData;
 let feedBotIcon;
+let cellFrame;
 let emptyMessagesAlert;
 let firstLoginDate;
 let modelStorageDB;
@@ -47,7 +47,7 @@ const headerElementObserver = new MutationObserver(async () => {
     if (headerElement !== null) {
         connected = true;
         headerElementObserver.disconnect();
-        await loadExtension().then(() => {
+        await loadExtension().then(async () => {
             let secondDiv = headerElement.childNodes[1];
             let childNodes = secondDiv.childNodes;
             const firstChild = childNodes[0].firstChild;
@@ -73,7 +73,7 @@ const headerElementObserver = new MutationObserver(async () => {
                     }
                 });
             }
-            cellFrameElement = document.querySelector(WhatsAppGlobals.cellFrameElement);
+            cellFrame = await ChromeUtils.sendChromeMessage({action:'get-html-file', fileName:'cellframe'})
             if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {
                 chatInputPlaceholder = translation.typeMessage
             }
@@ -451,62 +451,37 @@ async function createMessagesList() {
 }
 
 async function createMessagesFrames(messagesList, relevantMessages) {
-    for (const item of relevantMessages) {
+    for (let i = 0; i < relevantMessages.length; i++) {
+        const item = relevantMessages[i];
         const messageFrame = await createMessageFrame(item);
+        if (i > 0) {messageFrame.style.marginTop = '3px';}
         messagesList.appendChild(messageFrame);
     }
 }
 
+
 async function createMessageFrame(item) {
-    const newCellFrame = cellFrameElement.cloneNode(true)
-    const clickListener = (event) => {
-    };
-    newCellFrame.addEventListener('click', clickListener);
-    newCellFrame.removeEventListener('click', clickListener);
-    //frameStyle
-    newCellFrame.style.paddingBottom = "5px"
-    newCellFrame.style.paddingTop = "2px"
-    // ** contact name ** //
-    const cellFrameTitleElement = newCellFrame.querySelector('div[data-testid="cell-frame-title"]');
-    const firstCellFrameChild = cellFrameTitleElement.childNodes[0];
-    const chatTextElement = firstCellFrameChild.childNodes[0]
-    await GeneralUtils.clearChildesFromParent(firstCellFrameChild)
-    if (item.chatName) {
-        chatTextElement.title = item.chatName;
-        chatTextElement.textContent = item.chatName;
-    } else {
-        chatTextElement.title = item.media;
-        chatTextElement.textContent = item.media;
+    const newCellFrame = document.createElement('div');
+    newCellFrame.innerHTML = cellFrame
+    let contactImgElement = newCellFrame.querySelector('.fb-img-inner-ring')
+    if (item.imageUrl){contactImgElement.src = item.imageUrl}
+    let contactNameElement = newCellFrame.querySelector('.fb-cell-content')
+    contactNameElement.innerText = item.chatName
+    contactNameElement.title = item.chatName
+    let extraDetailsElement = newCellFrame.querySelector('.fb-cell-extra-details')
+    extraDetailsElement.textContent = item.dateTimeStr
+    let messageTextElement = newCellFrame.querySelector('.fb-message-text');
+    const text = item.message;
+    const maxLength = 30;
+    if (text.length > maxLength) {
+        messageTextElement.textContent = text.slice(0, maxLength) + '...';
+    }else {
+        messageTextElement.textContent = text;
     }
-    firstCellFrameChild.appendChild(chatTextElement)
-    const detailContainer = newCellFrame.querySelector('div[data-testid="cell-frame-primary-detail"]')
-    detailContainer.childNodes[0].textContent = item.dateTimeStr;
-    detailContainer.style.color = "#667781"
-    //contact - text
-    const lastMessageStatus = newCellFrame.querySelector('span[data-testid="last-msg-status"]');
-    if (lastMessageStatus) {
-        lastMessageStatus.title = item.message
-        lastMessageStatus.style.color = "#7e7a7a"
-        lastMessageStatus.style.fontWeight = "bold"
-    }
-    await GeneralUtils.clearChildesFromParent(lastMessageStatus)
-    // const chatNameTitle = firstCellFrameChild.childNodes[0];
-    let messageTextElement = chatTextElement.cloneNode(true)
-    messageTextElement.textContent = item.message
-    messageTextElement.title = item.message
-    lastMessageStatus.appendChild(messageTextElement)
-    // add cancel button
-    const cellFrameSecondary = newCellFrame.querySelector('div[data-testid="cell-frame-secondary"]');
-    const iconPlaceElement = cellFrameSecondary.childNodes[1];
-    if (iconPlaceElement) {
-        const currentFirstChild = iconPlaceElement.children[0];
-        iconPlaceElement.removeChild(currentFirstChild);
-        // add cancel button
-        const deleteMessageButton = document.createElement('button')
-        deleteMessageButton.textContent = translation.deleteText
-        deleteMessageButton.className = "fb-custom-cancel-button"
-        deleteMessageButton.setAttribute("key", item.id)
-        deleteMessageButton.addEventListener('click', (e) => {
+    const deleteMessageButton = newCellFrame.querySelector('.fb-custom-cancel-button')
+    deleteMessageButton.textContent = translation.deleteText
+    deleteMessageButton.setAttribute("key", item.id)
+    deleteMessageButton.addEventListener('click', (e) => {
             Swal.fire({
                 title: translation.deleteMessage,
                 text: translation.sureAboutDeleteMessage,
@@ -528,18 +503,9 @@ async function createMessageFrame(item) {
 
             })
         })
-        const editMessageButton = document.createElement('button')
+        const editMessageButton = newCellFrame.querySelector('.fb-custom-edit-button')
         editMessageButton.textContent = translation.edit
-        editMessageButton.className = "fb-custom-edit-button"
-        editMessageButton.addEventListener('click', async () => {
-            await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})
-        })
-        //editMessageButton.setAttribute("key", item.id)
-        iconPlaceElement.insertBefore(deleteMessageButton, iconPlaceElement.firstChild);
-        iconPlaceElement.insertBefore(editMessageButton, iconPlaceElement.firstChild);
-    }
-    //contact image
-    newCellFrame.childNodes[0].childNodes[0].childNodes[0].childNodes[0].childNodes[0].src = item.imageUrl;
+        editMessageButton.addEventListener('click', async () => {await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})})
     return newCellFrame;
 }
 
@@ -698,7 +664,7 @@ function executeContactSending(item) {
                                             p1.remove();
                                             item.messageSent = true;
                                             ChromeUtils.updateItem(item)
-                                            setTimeout(()=>{},Globals.SECOND)
+                                            setTimeout(()=>{},Globals.SECOND/2)
                                             resolve({success: true, error: null})
                                         })
                                         .catch(error => {
@@ -706,10 +672,12 @@ function executeContactSending(item) {
                                         });
 
                                 } else {
+                                    let chatBody =document.querySelector(WhatsAppGlobals.conversationBodyElement)
+                                    if (chatBody){chatBody.click();}
                                     GeneralUtils.simulateKeyPress('keydown', "Escape");
                                     console.log("click on escape")
                                     await GeneralUtils.sleep(1)
-                                    p1.click();
+                                    p1.click()
                                 }
                             }
                         }, 200)
@@ -957,15 +925,15 @@ const showUnSentMessagesPopup = (unSentMessages) => {
         cancelButtonColor: '#d33'
     }).then(async (result) => {
         if (result.isConfirmed) {
-            console.log("confirm")
-            await GeneralUtils.sleep(1)
+            await GeneralUtils.sleep(1);
             for (const item of unSentMessages) {
-                await ChromeUtils.updateItem(item)
-                sendScheduledMessage(item.id).then(() => {
-                    console.log("message has been sent number: " + item.id)
-                })
+                item.repeatSending = true;
+                await ChromeUtils.updateItem(item);
+                await sendScheduledMessage(item.id);
+                console.log("message has been sent number: " + item.id);
             }
         }
+
         if (result.isDismissed || result.dismiss) {
             unSentMessages.forEach(item => {
                 item.deleted = true;
@@ -983,7 +951,7 @@ const showBulkSendingModal = async () => {
     let excelHeaders;
     let state = {message: '', csvFile: false}
     try {
-        const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage('get-bulk-sending-modal');
+        const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage({action:'get-html-file' , fileName: 'bulksendmodal'});
         Swal.fire({
             title: translation.bulkSending,
             html: bulkSendingModalHTML,
@@ -1192,7 +1160,7 @@ const showSchedulerModal = async (data) => {
             if (scheduledTime <= Date.now()) {
                 scheduledTime = new Date().getTime()
             }
-            let messageData
+            let messageData;
             if (data.type === Globals.NEW_MESSAGE) {
                 messageData = {
                     messageType: Globals.NEW_MESSAGE,
@@ -1219,11 +1187,26 @@ const showSchedulerModal = async (data) => {
 const showGroupsModal = (result) => {
     const container = document.createElement("div");
     container.className = "groups-modal-container";
-    const contactsBody = document.createElement("div")
-    contactsBody.className = "groups-body";
+    const searchBarContainer = document.createElement("div");
+    searchBarContainer.classList.add('fb-search-bar-container')
+    const searchBar = document.createElement('input');
+    searchBar.id = "fb-search-bar"
+    searchBar.placeholder = translation.search;
+    searchBar.classList.add('fb-search-bar');
+    searchBarContainer.appendChild(searchBar)
+    container.appendChild(searchBarContainer)
+    searchBar.addEventListener('input', handleSearch);
+    const groupsBody = document.createElement("div")
+    groupsBody.className = "groups-body";
     for (let item of result) {
-        let div = document.createElement('div')
-        div.className = "checkbox-container";
+        let checkBoxContainer = createCheckBoxContainer(item)
+        groupsBody.appendChild(checkBoxContainer)
+        container.appendChild(groupsBody)
+    }
+    function createCheckBoxContainer(item) {
+        let checkBoxContainer = document.createElement('div')
+        checkBoxContainer.className = "checkbox-container";
+        checkBoxContainer.id = item.groupId;
         let checkboxInput = document.createElement('input')
         checkboxInput.type = "checkbox"
         checkboxInput.name = item.groupName;
@@ -1234,10 +1217,9 @@ const showGroupsModal = (result) => {
         checkboxLabel.setAttribute('for', item.groupName)
         checkboxLabel.innerText = item.groupName;
         checkboxLabel.setAttribute("for", item.groupId)
-        div.appendChild(checkboxInput)
-        div.appendChild(checkboxLabel)
-        contactsBody.appendChild(div)
-        container.appendChild(contactsBody)
+        checkBoxContainer.appendChild(checkboxInput)
+        checkBoxContainer.appendChild(checkboxLabel)
+        return checkBoxContainer;
     }
     Swal.fire({
         title: translation.chooseFromFollowingOptions,
@@ -1272,6 +1254,17 @@ const showGroupsModal = (result) => {
             })
         }
     });
+    function handleSearch() {
+        const searchValue = searchBar.value.toLowerCase();
+        GeneralUtils.clearChildesFromParent(groupsBody).then(() => {
+            for (let item of result) {
+                if (item.groupName.toLowerCase().includes(searchValue)) {
+                    let checkBoxContainer = createCheckBoxContainer(item); // Get the checkbox container element by its ID from initialCheckBoxContainer
+                    groupsBody.appendChild(checkBoxContainer)
+                }
+            }
+        });
+    }
 
 
 }

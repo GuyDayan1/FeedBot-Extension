@@ -1,0 +1,139 @@
+.fb-cell-frame-container{
+    cursor: pointer;
+    background-color: #ffffff;
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    height: 5.5em;
+}
+.fb-img-container{
+    display: flex;
+}
+
+.fb-img-outer-ring{
+    padding: 0 13px 0 15px;
+    margin-top: -1px;
+    flex: none;
+    align-items: center;
+    display: flex;
+}
+.fb-img-inner-ring-container{
+    height: 49px;
+    width: 49px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.fb-img-inner-ring{
+    visibility: visible;
+    border-radius: 50%;
+    overflow-y: hidden;
+    overflow-x: hidden;
+    height: 100%;
+    width: 100%;
+    position: relative;
+    opacity: 1;
+    transition:opacity .15s ease-out;
+}
+.fb-content-container{
+    padding-left: 15px;
+    border-top: 1px solid #e9edef;
+    display: flex;
+    flex-basis: auto;
+    flex-direction: column;
+    flex-grow: 1;
+    justify-content: center;
+    min-width: 0;
+}
+
+.fb-head-content{
+    text-align: right;
+    display: flex;
+    align-items: center;
+    line-height: normal;
+}
+.fb-cell-frame-title{
+    text-align: right;
+    line-height: normal;
+    display: flex;
+    flex-grow: 1;
+    overflow: hidden;
+    font-size: 17px;
+    font-weight: 400;
+    color: #111b21;
+    overflow-wrap : break-word;
+}
+.fb-cell-content-container{
+    display: inherit;
+    overflow: inherit;
+    text-overflow: inherit;
+    white-space: inherit;
+}
+.fb-cell-content{
+    visibility: visible;
+    overflow-y: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    flex-grow: 1;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.fb-cell-margin{
+    margin-right: 8px;
+    display: inline-flex;
+    align-items: flex-end;
+    height: 17px;
+    color: #3b4a54;
+    vertical-align: top;
+}
+
+.fb-cell-extra-details{
+    margin-top: 3px;
+    margin-right: 6px;
+    overflow: hidden;
+    line-height: 14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: none;
+    max-width: 100%;
+    font-size: 12px;
+    color: #3b4a54;
+    font-weight: 400;
+}
+.fb-secondary-content{
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    min-height: 20px;
+    font-size: 13px;
+    line-height: 20px;
+    color: #3b4a54
+}
+.fb-message-text-container{
+    text-align : right;
+    background-color: initial;
+    flex-grow: 1;
+    overflow: hidden;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 20px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fb-cell-actions-container{
+    margin-right: 6px;
+    flex: none;
+    max-width: 100%;
+    font-size: 12px;
+    line-height: 20px;
+    display: flex;
+    justify-content: flex-end;
+}
+.fb-cell-actions{
+    margin-left: 5px;
+    display: inline-block;
+    vertical-align: top;
+}

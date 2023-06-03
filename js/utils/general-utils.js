@@ -26,7 +26,13 @@ export function sleep(seconds) {
 export const simulateKeyPress = (type, keyName) => {    //type = which action to do simulate  , keyName = which key to action
     document.dispatchEvent(new KeyboardEvent(type, {'key': keyName}));
 }
-
+export const deleteTextInput = async (inputElement) => {
+    while (inputElement.textContent.length > 0) {
+        simulateKeyPress('keydown', 'Backspace');
+        simulateKeyPress('keyup', 'Backspace');
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for a short delay before each delete action
+    }
+};
 export function listFadeIn(element, duration) {
     let start = performance.now();
     element.style.opacity = "0";
@@ -223,6 +229,5 @@ export function formatPhoneNumber(phoneNumber, formatType) {
                 newPhone = ISR_PREFIX + newPhone;
             }
     }
-    console.log(newPhone)
     return newPhone;
 }

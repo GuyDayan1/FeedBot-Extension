@@ -117,9 +117,9 @@ export const schedulingTimeAlreadyExist = (schedulerMessages) => {
     return GeneralUtils.containsDuplicates(scheduledTimes);
 }
 
-export function sendChromeMessage(action) {
+export function sendChromeMessage(data) {
     return new Promise((resolve, reject) => {
-        chrome.runtime.sendMessage({ action: action }, response => {
+        chrome.runtime.sendMessage({data}, response => {
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError);
                 reject(chrome.runtime.lastError);
