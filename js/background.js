@@ -1,3 +1,6 @@
+let refreshTimeOut;
+
+
 
 chrome.tabs.onActivated.addListener(function(activeInfo) {
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
@@ -5,7 +8,7 @@ chrome.tabs.onActivated.addListener(function(activeInfo) {
         if (activeTab.url.includes('web.whatsapp.com')) {
             setTimeout(()=>{
                 handleRepeatMessages()
-            },5000)
+            },10000)
         }
     });
 });
@@ -51,10 +54,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             });
         return true;
     }
-
-
-    if (request.action === "refresh"){
-        refreshWhatsAppTab();
+    if (data.action === 'update-client-sending-state'){
+        client.state = data.state
+        client.sendingType = data.sendingType
+        console.log(JSON.stringify(client))
     }
 });
 

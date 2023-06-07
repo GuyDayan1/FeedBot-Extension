@@ -17,6 +17,7 @@ export const UNUSED_STATE = "un-used"
 export const BULK_SENDING = "bulk-sending";
 export const SCHEDULED_SENDING = "scheduled-sending"
 
+
 export const CONTACT_CHAT = "contact-chat"
 export const GROUP_CHAT = "group-chat"
 
