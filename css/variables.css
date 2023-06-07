@@ -13,7 +13,7 @@
     --primary-border-color: #0077ff;
 
     /*// modal colors // */
-    --modal-backdrop : rgba(255, 255, 255, 0.75);
+    --fb-modal-backdrop : rgb(0 0 0 / 40%);
     --modal-box-shadow : 0 2px 5px rgba(31,30,47,.7);
 
     /*list*/

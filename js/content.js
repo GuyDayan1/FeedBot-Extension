@@ -9,7 +9,6 @@ import Swal from "sweetalert2";
 
 let headerElement;
 let connected = false;
-// let currentChatDetails = {chatType: "", media: "", chatId: ""}
 let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
 let bulkSendingData;
 let feedBotIcon;
@@ -17,22 +16,15 @@ let cellFrame;
 let emptyMessagesAlert;
 let firstLoginDate;
 let modelStorageDB;
-let addressBookContacts;
-let nonAddressBookContacts;
 let allContacts;
 let modalBackdrop;
-let clockIcon;
-let chatInputPlaceholder = '';
+let clockSvg;
+let WAInputPlaceholder = '';
 let activeMessagesTimeout = {};
 let translation = {}
-let whatsAppSvgElement;
+let GenericSvgElement;
 let feedBotListOptions = [];
 let excelFeaturesListOptions = []
-
-
-
-
-
 
 
 const headerElementObserver = new MutationObserver(async () => {
@@ -56,23 +48,19 @@ const headerElementObserver = new MutationObserver(async () => {
                     if (!feedBotFeaturesList) {
                         addFeedBotFeatures()
                     } else {
-                        removeFeedBotFeatures()
+                        GeneralUtils.removeElement('.fb-features-dropdown');
                     }
                 })
                 window.addEventListener("click", (event) => {
                     const feedBotFeaturesList = document.getElementsByClassName("fb-features-dropdown")[0]
                     if ((!feedBotIcon.contains(event.target)) && (feedBotFeaturesList)) {
-                        removeFeedBotFeatures()
+                        GeneralUtils.removeElement('.fb-features-dropdown');
                     }
                 });
             }
-            cellFrame = await ChromeUtils.sendChromeMessage({action:'get-html-file', fileName:'cellframe'})
-            if (client.language.includes(Globals.HEBREW_LANGUAGE_PARAM)) {
-                chatInputPlaceholder = translation.typeMessage
-            }
-            if (client.language.includes(Globals.ENGLISH_LANGUAGE_PARAM)) {
-                chatInputPlaceholder = translation.typeMessage
-            }
+            cellFrame = await ChromeUtils.sendChromeMessage({action: 'get-html-file', fileName: 'cellframe'})
+            clockSvg  = chrome.runtime.getURL('icons/clock-icon.svg');
+            WAInputPlaceholder = translation.typeMessage
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
         })
@@ -117,14 +105,13 @@ async function initTranslations() {
 }
 
 
-
 async function initMessagesTimeOut() {
-    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(async () => {
+    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(async () => {
         if (Object.keys(activeMessagesTimeout.length === 0)) {
             await clearAllItemsTimeOuts();
         }
         let schedulerMessages = await ChromeUtils.getSchedulerMessages();
-        const now =new Date().getTime();
+        const now = new Date().getTime();
         const relevantMessages = [];
         const unSentMessages = [];
         for (let i = 0; i < schedulerMessages.length; i++) {
@@ -147,29 +134,14 @@ async function initMessagesTimeOut() {
         }
     })
 }
-async function checkForUnSentMessages() {
-    let schedulerMessages = await ChromeUtils.getSchedulerMessages();
-    const now = new Date().getTime();
-    const unSentMessages = [];
-    for (let i = 0; i < schedulerMessages.length; i++) {
-        const item = schedulerMessages[i];
-        if (!item.messageSent && !item.deleted) {
-            if (item.scheduledTime < now) {
-                unSentMessages.push(item);
-            }
-        }
-    }
-    if (unSentMessages.length > 0) {
-        showUnSentMessagesPopup(unSentMessages)
-    }
-}
+
 
 function chatListener() {
-    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
+    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
-            waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
+            GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
                 let currentChatDetails = await GeneralUtils.getChatDetails()
-                waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 5)
+                GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 5)
                     .then((element) => {
                         const clockIcon = document.getElementById("clock-icon");
                         if (!clockIcon && currentChatDetails.chatType === Globals.CONTACT_PARAM && currentChatDetails.chatId) {
@@ -199,10 +171,11 @@ function clearSpecificItem(id) {
 
 
 async function getSvgWhatsAppElement() {
-    whatsAppSvgElement = document.querySelector(WhatsAppGlobals.menuElement)
-    whatsAppSvgElement.removeEventListener('click', () => {
+    GenericSvgElement = document.querySelector(WhatsAppGlobals.menuElement)
+    GenericSvgElement.removeEventListener('click', () => {
     })
 }
+
 
 async function removeFeedBotFeatures() {
     const feedBotListFeatures = document.getElementsByClassName("fb-features-dropdown")[0];
@@ -212,6 +185,7 @@ async function removeFeedBotFeatures() {
 async function addFeedBotFeatures() {
     const feedBotListFeatures = document.createElement("ul");
     feedBotListFeatures.className = "fb-features-dropdown";
+    feedBotListFeatures.style.marginLeft = client.language === Globals.HEBREW_LANGUAGE_PARAM ? '3rem' : 'auto'
     for (let i = 0; i < feedBotListOptions.length; i++) {
         const feedBotListItem = document.createElement("li");
         feedBotListItem.className = "fb-list-item"
@@ -233,15 +207,16 @@ async function addFeedBotFeatures() {
             case translation.exportToExcel:
                 const excelSubListFeatures = document.createElement("ul");
                 excelSubListFeatures.className = "fb-excel-features-dropdown";
+                excelSubListFeatures.style[client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'right' : 'left'] = '100%';
                 const arrowSvgData = {
                     data_testid: "arrow",
                     data_icon: "arrow",
                     height: 20,
                     width: 20,
-                    d: Globals.LEFT_ARROW_SVG_PATH_VALUE
+                    d: client.language === Globals.HEBREW_LANGUAGE_PARAM ? Globals.LEFT_ARROW_SVG_PATH_VALUE : Globals.RIGHT_ARROW_SVG_PATH_VALUE
                 }
                 const arrowElement = createSvgElement(arrowSvgData);
-                arrowElement.style.marginRight = "auto"
+                client.language === Globals.HEBREW_LANGUAGE_PARAM ? arrowElement.style.marginRight = "auto" : arrowElement.style.marginLeft = "auto"
                 feedBotListItem.childNodes[0].style.display = "flex"
                 feedBotListItem.childNodes[0].appendChild(arrowElement)
                 feedBotListItem.appendChild(excelSubListFeatures)
@@ -273,7 +248,7 @@ async function addFeedBotFeatures() {
 
 
 function createSvgElement(data) {
-    let element = whatsAppSvgElement.cloneNode(true)
+    let element = GenericSvgElement.cloneNode(true)
     element.setAttribute('data-testid', data.data_testid);
     element.setAttribute('data-icon', data.data_icon);
     element.childNodes[0].setAttribute('height', data.height)
@@ -300,7 +275,7 @@ async function exportContactsToExcel(selectedOption) {
         case Globals.SAVED_PARAM :
             const savedContacts = allContacts.filter(item => {
                 return item.isAddressBookContact === 1;
-            }).map(item=>{
+            }).map(item => {
                 const phoneNumber = item.id.split('@')[0];
                 const phoneBookContactName = item.name || '';
                 const whatsappUserName = item.pushname || '';
@@ -312,10 +287,10 @@ async function exportContactsToExcel(selectedOption) {
         case Globals.UN_SAVED_PARAM:
             const unSavedContacts = allContacts.filter(item => {
                 return item.isAddressBookContact === 0
-            }).map(item=>{
+            }).map(item => {
                 const phoneNumber = item.id.split('@')[0];
                 const pushName = item.pushname || ''
-                return {phoneNumber,pushName}
+                return {phoneNumber, pushName}
             })
             headers = [translation.phoneNumber, translation.contactName]
             ExcelUtils.exportToExcelFile(unSavedContacts, translation.unSavedContacts, headers)
@@ -333,7 +308,6 @@ async function exportContactsToExcel(selectedOption) {
     }
 
 }
-
 
 
 async function exportParticipantsByGroupIdsToExcel(groupsId) {
@@ -389,7 +363,9 @@ async function exportAllGroupsParticipantsToExcel() {
 function refreshScheduledMessagesList() {
     let schedulerListContainer = document.getElementsByClassName('scheduler-messages-container')[0];
     let messagesList = schedulerListContainer.querySelector('.messages-list')
-    if (messagesList) {messagesList.remove()}
+    if (messagesList) {
+        messagesList.remove()
+    }
     setTimeout(async () => {
         let newMessagesList = await createMessagesList();
         schedulerListContainer.appendChild(newMessagesList);
@@ -440,7 +416,9 @@ async function createMessagesFrames(messagesList, relevantMessages) {
     for (let i = 0; i < relevantMessages.length; i++) {
         const item = relevantMessages[i];
         const messageFrame = await createMessageFrame(item);
-        if (i > 0) {messageFrame.style.marginTop = '3px';}
+        if (i > 0) {
+            messageFrame.style.marginTop = '3px';
+        }
         messagesList.appendChild(messageFrame);
     }
 }
@@ -450,7 +428,9 @@ async function createMessageFrame(item) {
     const newCellFrame = document.createElement('div');
     newCellFrame.innerHTML = cellFrame
     let contactImgElement = newCellFrame.querySelector('.fb-img-inner-ring')
-    if (item.imageUrl){contactImgElement.src = item.imageUrl}
+    if (item.imageUrl) {
+        contactImgElement.src = item.imageUrl
+    }
     let contactNameElement = newCellFrame.querySelector('.fb-cell-content')
     contactNameElement.innerText = item.chatName
     contactNameElement.title = item.chatName
@@ -461,37 +441,39 @@ async function createMessageFrame(item) {
     const maxLength = 30;
     if (text.length > maxLength) {
         messageTextElement.textContent = text.slice(0, maxLength) + '...';
-    }else {
+    } else {
         messageTextElement.textContent = text;
     }
     const deleteMessageButton = newCellFrame.querySelector('.fb-custom-cancel-button')
     deleteMessageButton.textContent = translation.deleteText
     deleteMessageButton.setAttribute("key", item.id)
     deleteMessageButton.addEventListener('click', (e) => {
-            Swal.fire({
-                title: translation.deleteMessage,
-                text: translation.sureAboutDeleteMessage,
-                icon: 'warning',
-                showCancelButton: true,
-                reverseButtons: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                cancelButtonText: translation.confirmCancel,
-                confirmButtonText: translation.confirmDelete,
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    item.deleted = true;
-                    ChromeUtils.updateItem(item)
-                    clearSpecificItem(item.id)
-                    refreshScheduledMessagesList()
-                    showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully, 'success')
-                }
+        Swal.fire({
+            title: translation.deleteMessage,
+            text: translation.sureAboutDeleteMessage,
+            icon: 'warning',
+            showCancelButton: true,
+            reverseButtons: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: translation.confirmCancel,
+            confirmButtonText: translation.confirmDelete,
+        }).then((result) => {
+            if (result.isConfirmed) {
+                item.deleted = true;
+                ChromeUtils.updateItem(item)
+                clearSpecificItem(item.id)
+                refreshScheduledMessagesList()
+                showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully, 'success')
+            }
 
-            })
         })
-        const editMessageButton = newCellFrame.querySelector('.fb-custom-edit-button')
-        editMessageButton.textContent = translation.edit
-        editMessageButton.addEventListener('click', async () => {await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})})
+    })
+    const editMessageButton = newCellFrame.querySelector('.fb-custom-edit-button')
+    editMessageButton.textContent = translation.edit
+    editMessageButton.addEventListener('click', async () => {
+        await showSchedulerModal({type: Globals.EDIT_MESSAGE, itemId: item.id})
+    })
     return newCellFrame;
 }
 
@@ -499,39 +481,21 @@ async function createMessageFrame(item) {
 async function addSchedulerButton() {
     const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement)
     if (composeBoxElement) {
-        if (!clockIcon) {
-            const pttElement = composeBoxElement.childNodes[1].childNodes[0].childNodes[1].childNodes[1];
-            clockIcon = pttElement.cloneNode(true)
+        let foundItem = document.getElementById('clock-icon')
+        if (!foundItem){
+            const clockIcon = new Image();
             clockIcon.id = "clock-icon"
-            clockIcon.title = translation.scheduleMessage
-            const buttonChild = clockIcon.childNodes[0]
-            const spanChild = buttonChild.childNodes[0]
-            buttonChild.setAttribute('data-testid', 'scheduler-btn');
-            buttonChild.setAttribute('aria-label', translation.scheduleMessage);
-            spanChild.setAttribute('data-testid', 'scheduler');
-            spanChild.setAttribute('data-icon', 'scheduler');
-            if (spanChild.classList.length === 2) {
-                spanChild.classList.remove(spanChild.classList[1])
-            }
-            const svgElement = clockIcon.childNodes[0].childNodes[0].childNodes[0]
-            svgElement.style.width = "30px"
-            svgElement.style.height = "30px"
-            svgElement.style.marginTop = "10px"
-            svgElement.style.marginLeft = "15px"
-            const svgPathElement = clockIcon.childNodes[0].childNodes[0].childNodes[0].childNodes[0];
-            svgPathElement.setAttribute("d", Globals.CLOCK_SVG_PATH_VALUE);
+            clockIcon.title = translation.scheduleMessage;
+            clockIcon.onload = () => {
+                composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
+            };
+            clockIcon.src = clockSvg;
+            clockIcon.addEventListener('click', () => {
+                clockIcon.disabled = true
+                showSchedulerModal({type: Globals.NEW_MESSAGE})
+            });
         }
-        composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
-        clockIcon.removeEventListener('click', () => {
-        });
-        clockIcon.addEventListener('click', () => {
-            clockIcon.disabled = true
-            showSchedulerModal({type: Globals.NEW_MESSAGE})
-        });
-
     }
-
-
 }
 
 
@@ -541,12 +505,13 @@ async function handleConfirmButtonClick(messageData) {
             ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
                 const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
                 saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
-                    showToastMessage('bottom-end', 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
+                    let position = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'bottom-end' : 'bottom-start'
+                    showToastMessage(position, 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
                 }).catch((error) => {
-                    console.log(error)
+                    console.log(error, "save message")
                 })
             }).catch((onerror) => {
-                console.log(onerror.message)
+                console.log(onerror.message, "get scheduler messages")
             })
         }
         if (messageData.messageType === Globals.EDIT_MESSAGE) {
@@ -562,26 +527,49 @@ async function handleConfirmButtonClick(messageData) {
             })
         }
     } else {
-        showErrorMessage(messageData.scheduleMessageWarning.warningMessage)
+        showErrorModal(messageData.scheduleMessageWarning.warningMessage)
     }
 
 }
 
-const startBulkSending = (data) => {
+async function showBulkState() {
+    try {
+        let bulkState = await ChromeUtils.sendChromeMessage({action: 'get-html-file', fileName: 'bulkstate'})
+        let bulkStateHtml = document.createElement('div');
+        bulkStateHtml.className = "bulk-state-container"
+        bulkStateHtml.innerHTML = bulkState;
+        document.body.appendChild(bulkStateHtml)
+    } catch (e) {
+
+    }
+
+}
+
+function clearBulkState() {
+    let bulkStateHtml = document.getElementsByClassName('bulk-state-container')[0]
+    if (bulkStateHtml){bulkStateHtml.remove()}
+}
+
+const startBulkSending = async (data) => {
+    client.state = Globals.SENDING_STATE;
+    client.sendingType = Globals.BULK_SENDING;
+    await showBulkState()
     let index = data.startIndex;
     let extra = data.extra
-    client.state = Globals.SENDING_STATE;
-    client.sendingType = Globals.BULK_SENDING
     const sendNextItem = () => {
-        if (index >= bulkSendingData.length) {
-            return;
-        }
-        const item = bulkSendingData[index]
-        executeContactSending(item).then((result) => {
-            //console.log(JSON.stringify(result))
-            index++;
-            sendNextItem()
-        })
+            if (index >= bulkSendingData.length) {
+                clearBulkState();
+                return;
+            }
+            const item = bulkSendingData[index]
+            executeContactSending(item).then((result) => {
+                index++;
+                sendNextItem()
+            }).catch(reason => {
+                index++;
+                sendNextItem()
+            })
+
     }
     sendNextItem()
 }
@@ -600,15 +588,19 @@ const sendScheduledMessage = async (id) => {
         } else {
             client.state = Globals.SENDING_STATE;
             if (item.chatType === Globals.CONTACT_PARAM) {
-                executeContactSending(item).then(res=>{
+                executeContactSending(item).then(async res => {
                     client.state = Globals.UNUSED_STATE;
                     client.sendingType = "";
+                    if (res.success) {
+                        item.messageSent = true;
+                        await ChromeUtils.updateItem(item);
+                    }
                 })
             }
 
         }
-    }else {
-        if (!item.deleted){
+    } else {
+        if (!item.deleted) {
             item.repeatSending = true;
             await ChromeUtils.updateItem(item);
         }
@@ -617,6 +609,7 @@ const sendScheduledMessage = async (id) => {
 }
 
 function executeContactSending(item) {
+    let error = null, success = false;
     return new Promise(async (resolve, reject) => {
         const element = document.createElement("a");
         element.href = `https://web.whatsapp.com/send?phone=${item.media}&text=${item.message}`;
@@ -624,41 +617,45 @@ function executeContactSending(item) {
         document.body.append(element);
         let p1 = document.getElementById("mychat");
         p1.click();
+        let tries = 0;
         const waitForChatInterval = setInterval(async () => {
-            let tries = 0;
-            const popup = document.querySelector('div[data-testid="confirm-popup"]');
-            if (popup && tries > 10) {
+            if (tries > 40) {
+                console.log("clear chat interval tries over")
+                const popup = document.querySelector('div[data-testid="confirm-popup"]');
                 p1.remove();
-                resolve({ success: false, error: Errors.INVALID_PHONE });
+                error = popup ? Errors.INVALID_PHONE : Errors.GENERAL_ERROR
                 clearInterval(waitForChatInterval);
+                resolve({success, error});
             } else {
                 const chatDetails = await GeneralUtils.getChatDetails();
-                if (chatDetails.chatId === item.chatId) {
+                if (chatDetails.chatId === item.chatId  || chatDetails.chatId.includes(item.chatId)) {
+                    console.log("clear chat interval chat found")
                     clearInterval(waitForChatInterval);
                     const waitForTextInterval = setInterval(async () => {
                         const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
                         if (composeBoxElement) {
                             let textInput = document.querySelectorAll('[class*="text-input"]')[1];
-                            let textContext = textInput.childNodes[0].childNodes[0].childNodes[0].textContent;
-                            if (textContext === item.message) {
+                            if (textInput.textContent === item.message) {
+                                console.log("clear text interval")
                                 clearInterval(waitForTextInterval);
                                 try {
-                                    const sendElement = await waitForNodeWithTimeOut(
-                                        document.body,
-                                        'span[data-testid="send"]',
-                                        Globals.SECOND * 5
-                                    );
-                                    sendElement.click();
-                                    p1.remove();
-                                    item.messageSent = true;
-                                    await ChromeUtils.updateItem(item);
-                                    resolve({ success: true, error: null });
-                                } catch (error) {
-                                    reject({ success: false, error: Errors.ELEMENT_NOT_FOUND });
+                                    await GeneralUtils.waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', Globals.SECOND * 5).then(sendElement=>{
+                                        console.log(sendElement)
+                                        sendElement.click();
+                                        p1.remove();
+                                        success = true;
+                                        resolve({success, error});
+                                    })
+                                } catch (currentError) {
+                                    console.log(currentError , "in current error")
+                                    error = Errors.ELEMENT_NOT_FOUND
+                                    reject({success, error});
                                 }
                             } else {
                                 let chatBody = document.querySelector(WhatsAppGlobals.conversationBodyElement);
-                                if (chatBody) {chatBody.click();}
+                                if (chatBody) {
+                                    chatBody.click();
+                                }
                                 GeneralUtils.simulateKeyPress('keydown', "Escape");
                                 await GeneralUtils.sleep(1);
                                 p1.click();
@@ -666,7 +663,9 @@ function executeContactSending(item) {
                         }
                     }, 200);
                 } else {
-                    // Handle the case when chat details don't match
+                    console.log("No Match : ")
+                    console.log("Chat Details: " , chatDetails.chatId)
+                    console.log("Item Details: " , item.chatId)
                 }
             }
             tries++;
@@ -678,25 +677,6 @@ function executeContactSending(item) {
 async function searchingForGroup(media) {
     let side = document.getElementById('pane-side')
     side.scrollTop -= side.scrollTop /// scroll to top
-
-
-}
-
-function simulateTyping(inputElement, text) {
-    let index = 0;
-
-    function typeNextChar() {
-        if (index < text.length) {
-            const char = text.charAt(index);
-            const keyCode = char.charCodeAt(0);
-            const event = new KeyboardEvent('keydown', {keyCode});
-            inputElement.dispatchEvent(event);
-            index++;
-            setTimeout(typeNextChar, 100);
-        }
-    }
-
-    typeNextChar();
 }
 
 
@@ -727,7 +707,8 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 warnBeforeSending,
                 repeatSending: false,
                 messageSent: false,
-                deleted: false
+                deleted: false,
+                error: null
             };
             const currentSchedulerMessages = await ChromeUtils.getSchedulerMessages();
             const updatedSchedulerMessages = [...currentSchedulerMessages, data];
@@ -797,72 +778,19 @@ function setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending) {
 }
 
 
-function waitForNode(parentNode, selector) {
-    return new Promise((resolve, reject) => {
-        const interval = setInterval(() => {
-            const element = parentNode.querySelector(selector);
-            if (element) {
-                clearInterval(interval);
-                resolve(element);
-            }
-        }, 50);
-    });
-}
-
-function waitForNodeWithTimeOut(parentNode, selector, timeout) {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
-        const interval = setInterval(() => {
-            const elapsedTime = Date.now() - startTime;
-            if (elapsedTime > timeout) {
-                clearInterval(interval);
-            }
-            const element = parentNode.querySelector(selector);
-            if (element) {
-                clearInterval(interval);
-                resolve(element);
-            }
-        }, 10);
-    });
-}
-
-
-function addSelectOptions(selector, selectorName) {
-    const optionLength = (selectorName === 'hour') ? 24 : 60;
-
-    function addOption(value, text) {
-        const option = document.createElement('option');
-        option.value = value;
-        option.text = text;
-        selector.add(option);
-    }
-
-    if (selector.options.length !== optionLength) {
-        selector.options.length = 0;
-        for (let i = 0; i < optionLength; i++) {
-            if (i < 10) {
-                addOption(i, "0" + i);
-            } else {
-                addOption(i, i);
-            }
-        }
-    }
-}
-
-
 function showUserTypingAlert(timer, contactName) {
     let timerInterval
     Swal.fire({
         title: ` ${translation.scheduledMessageTo} ${contactName}`,
-        html: 'ההודעה תשלח בעוד <b></b> שניות',
+        html: `${translation.messageWillBeSent} <b></b> ${translation.seconds}`,
         timer: timer,
         timerProgressBar: false,
         didOpen: () => {
             //Swal.showLoading()
             const b = Swal.getHtmlContainer().querySelector('b')
             timerInterval = setInterval(() => {
-                b.textContent = Math.ceil(Swal.getTimerLeft() / 1000).toString()
-            }, 1000)
+                b.textContent = Math.ceil(Swal.getTimerLeft() / Globals.SECOND).toString()
+            }, Globals.SECOND)
         },
         willClose: () => {
             clearInterval(timerInterval)
@@ -874,7 +802,7 @@ function showUserTypingAlert(timer, contactName) {
     })
 }
 
-const showErrorMessage = (message) => {
+const showErrorModal = (message) => {
     Swal.fire({
         icon: 'error',
         title: translation.oops,
@@ -935,7 +863,10 @@ const showBulkSendingModal = async () => {
     let excelHeaders;
     let state = {message: '', csvFile: false}
     try {
-        const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage({action:'get-html-file' , fileName: 'bulksendmodal'});
+        const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage({
+            action: 'get-html-file',
+            fileName: 'bulksendmodal'
+        });
         Swal.fire({
             title: translation.bulkSending,
             html: bulkSendingModalHTML,
@@ -1056,8 +987,9 @@ const showSchedulerModal = async (data) => {
     const minuteContainer = document.createElement('div');
     minuteContainer.className = 'minute-container';
     const minuteLabel = document.createElement('label');
+    minuteLabel.style.textAlign = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "right" : "left"
     minuteLabel.htmlFor = 'minute';
-    minuteLabel.textContent = 'דקה';
+    minuteLabel.textContent = GeneralUtils.capitalizeFirstLetter(translation.minute);
     const minuteDropdown = document.createElement('select');
     minuteDropdown.name = 'minutePicker';
     minuteDropdown.id = 'minute';
@@ -1067,8 +999,9 @@ const showSchedulerModal = async (data) => {
     const hourContainer = document.createElement('div');
     hourContainer.className = 'hour-container';
     const hourLabel = document.createElement('label');
+    hourLabel.style.textAlign = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "right" : "left"
     hourLabel.htmlFor = 'hour';
-    hourLabel.textContent = 'שעה';
+    hourLabel.textContent = GeneralUtils.capitalizeFirstLetter(translation.hour)
     const hourDropdown = document.createElement('select');
     hourDropdown.name = 'hourPicker';
     hourDropdown.id = 'hour';
@@ -1078,8 +1011,9 @@ const showSchedulerModal = async (data) => {
     const dateContainer = document.createElement('div');
     dateContainer.className = 'date-container';
     const dateLabel = document.createElement('label');
+    dateLabel.style.textAlign = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "right" : "left"
     dateLabel.htmlFor = 'datepicker';
-    dateLabel.textContent = 'תאריך';
+    dateLabel.textContent = GeneralUtils.capitalizeFirstLetter(translation.date)
     const dateInput = document.createElement('input');
     dateInput.type = 'date';
     dateInput.name = 'datePicker';
@@ -1090,26 +1024,23 @@ const showSchedulerModal = async (data) => {
     schedulerTimeContainer.appendChild(minuteContainer);
     schedulerTimeContainer.appendChild(hourContainer);
     schedulerTimeContainer.appendChild(dateContainer);
-    addSelectOptions(hourDropdown, "hour")
-    addSelectOptions(minuteDropdown, "minute")
+    GeneralUtils.addSelectOptions(hourDropdown, "hour")
+    GeneralUtils.addSelectOptions(minuteDropdown, "minute")
     if (data.type === Globals.NEW_MESSAGE) {
         let currentDate = new Date();
-        let year = currentDate.getFullYear();
-        let month = String(currentDate.getMonth() + 1).padStart(2, '0');
-        let day = String(currentDate.getDate()).padStart(2, '0');
-        dateInput.value = `${year}-${month}-${day}`;
-        // dateInput.value = currentDate.toISOString().slice(0, 10);
+        dateInput.value = GeneralUtils.getDateAsString(currentDate)
         hourDropdown.selectedIndex = currentDate.getHours();
         minuteDropdown.selectedIndex = currentDate.getMinutes()
         let textInput = document.querySelectorAll('[class*="text-input"]')[1];
-        if (textInput.textContent !== chatInputPlaceholder) {
+        console.log("Text Input: ", textInput)
+        if (textInput.textContent !== WAInputPlaceholder) {
             messageTextArea.value = textInput.textContent
         }
     }
     if (data.type === Globals.EDIT_MESSAGE) {
         const item = await ChromeUtils.getScheduleMessageById(data.itemId)
         let date = new Date(item.scheduledTime)
-        dateInput.value = date.toISOString().slice(0, 10);
+        dateInput.value = GeneralUtils.getDateAsString(date)
         hourDropdown.selectedIndex = date.getHours();
         minuteDropdown.selectedIndex = date.getMinutes()
         messageTextArea.value = item.message;
@@ -1141,7 +1072,7 @@ const showSchedulerModal = async (data) => {
             }
             const dateTimeStr = date + " " + hour + ":" + minute;
             let scheduledTime = (new Date(dateTimeStr)).getTime();
-            if (scheduledTime <= Date.now()) {
+            if (scheduledTime <= new Date().getTime()) {
                 scheduledTime = new Date().getTime()
             }
             let messageData;
@@ -1187,6 +1118,7 @@ const showGroupsModal = (result) => {
         groupsBody.appendChild(checkBoxContainer)
         container.appendChild(groupsBody)
     }
+
     function createCheckBoxContainer(item) {
         let checkBoxContainer = document.createElement('div')
         checkBoxContainer.className = "checkbox-container";
@@ -1205,6 +1137,7 @@ const showGroupsModal = (result) => {
         checkBoxContainer.appendChild(checkboxLabel)
         return checkBoxContainer;
     }
+
     Swal.fire({
         title: translation.chooseFromFollowingOptions,
         html: container,
@@ -1217,7 +1150,7 @@ const showGroupsModal = (result) => {
         cancelButtonText: translation.confirmCancel,
         confirmButtonText: translation.approve,
         preConfirm: () => {
-            const checkboxes = contactsBody.querySelectorAll("input[type=checkbox]");
+            const checkboxes = groupsBody.querySelectorAll("input[type=checkbox]");
             const checkboxesArray = Array.from(checkboxes);
             const checkedCheckboxes = checkboxesArray.filter(checkbox => checkbox.checked);
             const checkedValues = checkedCheckboxes.map(checkbox => checkbox.value);
@@ -1238,6 +1171,7 @@ const showGroupsModal = (result) => {
             })
         }
     });
+
     function handleSearch() {
         const searchValue = searchBar.value.toLowerCase();
         GeneralUtils.clearChildesFromParent(groupsBody).then(() => {
@@ -1313,7 +1247,7 @@ const showContactsModal = () => {
                 return selectedOption;
             } else {
                 // Show an error message and prevent modal from closing
-                Swal.showValidationMessage('יש לבחור אחת מהאפשרויות');
+                Swal.showValidationMessage(translation.mustToChooseOneOption);
                 return false;
             }
         }

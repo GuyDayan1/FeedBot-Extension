@@ -3,19 +3,20 @@ chrome.tabs.onActivated.addListener(function(activeInfo) {
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         const activeTab = tabs[0];
         if (activeTab.url.includes('web.whatsapp.com')) {
-            checkForRepeatMessages()
+            setTimeout(()=>{
+                handleRepeatMessages()
+            },5000)
         }
     });
 });
 
-function checkForRepeatMessages(){
+function handleRepeatMessages(){
         chrome.storage.local.get(["schedulerMessages"], (result) => {
                 const schedulerMessages = result.schedulerMessages || [];
                 const repeatMessages = schedulerMessages.filter(item=>{
-                    return (item.messageSent === false && item.deleted === false && item.repeatSending)
+                    return (!item.messageSent && !item.deleted && item.repeatSending)
                 })
                 if (repeatMessages.length > 0){refreshWhatsAppTab()}
-
         });
 
 }

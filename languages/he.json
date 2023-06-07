@@ -31,6 +31,7 @@
   "whatsappUsername" : "שם משתמש בווטסאפ",
   "chooseOneFromFollowingOptions" : "בחר אחת מהאפשרויות הבאות",
   "chooseFromFollowingOptions" : "בחר מהאפשרויות הבאות",
+  "messageWillBeSent" : "ההודעה תשלח בעוד",
   "participantsByGroups" : "משתתפים לפי קבוצות",
   "mustToChooseOneOption" : "יש לבחור אחת מהאפשרויות",
   "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות",
@@ -40,5 +41,10 @@
   "noValue": "ללא ערך",
   "israel" : "ישראל",
   "usa" : "ארצות הברית",
-  "search" : "חיפוש"
+  "search" : "חיפוש",
+  "minute": "דקה",
+  "hour" : "שעה",
+  "date" : "תאריך",
+  "second" : "שניה",
+  "seconds" : "שניות"
 }

@@ -163,25 +163,41 @@ function addModalToDOM(modalContainer) {
 
 }
 
+export function removeElement(selector) {
+    const targetElement = document.querySelector(selector);
+    if (targetElement && targetElement.parentNode) {
+        targetElement.parentNode.removeChild(targetElement);
+    }
+}
+
+export function capitalizeFirstLetter(word) {
+    return word.charAt(0).toUpperCase() + word.slice(1);
+}
+export function getDateAsString(currentDate = new Date()) {
+    let year = currentDate.getFullYear();
+    let month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    let day = String(currentDate.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 function clearModalFromDOM(containerClassName) {
     document.getElementsByClassName(containerClassName)[0].remove()
     document.getElementsByClassName('modal-backdrop')[0].remove()
 }
 
-export function handleFileSelect(event) {
-    const selectedFile = event.target.files[0];
-    if (selectedFile) {
-        const fileType = selectedFile.type;
-        if (fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || fileType === 'text/csv') {
-            // Valid file type, perform further operations
-            console.log('File is valid:', selectedFile.name);
-            // Add your logic to process the file here
-        } else {
-            // Invalid file type
-            console.log('Invalid file type. Please select a valid XLSX or CSV file.');
-            // You can display an error message to the user or perform other actions
+export function simulateTyping(inputElement, text) {
+    let index = 0;
+    function typeNextChar() {
+        if (index < text.length) {
+            const char = text.charAt(index);
+            const keyCode = char.charCodeAt(0);
+            const event = new KeyboardEvent('keydown', {keyCode});
+            inputElement.dispatchEvent(event);
+            index++;
+            setTimeout(typeNextChar, 100);
         }
     }
+    typeNextChar();
 }
 
 export function createTable(headers, data) {
@@ -230,4 +246,52 @@ export function formatPhoneNumber(phoneNumber, formatType) {
             }
     }
     return newPhone;
+}
+export function waitForNode(parentNode, selector) {
+    return new Promise((resolve, reject) => {
+        const interval = setInterval(() => {
+            const element = parentNode.querySelector(selector);
+            if (element) {
+                clearInterval(interval);
+                resolve(element);
+            }
+        }, 50);
+    });
+}
+
+export function waitForNodeWithTimeOut(parentNode, selector, timeout) {
+    return new Promise((resolve, reject) => {
+        const startTime = Date.now();
+        const interval = setInterval(() => {
+            const elapsedTime = Date.now() - startTime;
+            if (elapsedTime > timeout) {
+                clearInterval(interval);
+            }
+            const element = parentNode.querySelector(selector);
+            if (element) {
+                clearInterval(interval);
+                resolve(element);
+            }
+        }, 10);
+    });
+}
+export function addSelectOptions(selector, selectorName) {
+    const optionLength = (selectorName === 'hour') ? 24 : 60;
+    function addOption(value, text) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.text = text;
+        selector.add(option);
+    }
+
+    if (selector.options.length !== optionLength) {
+        selector.options.length = 0;
+        for (let i = 0; i < optionLength; i++) {
+            if (i < 10) {
+                addOption(i, "0" + i);
+            } else {
+                addOption(i, i);
+            }
+        }
+    }
 }

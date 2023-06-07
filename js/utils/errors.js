@@ -1,2 +1,3 @@
-export const ELEMENT_NOT_FOUND = 1;
-export const INVALID_PHONE  = 2;
+export const GENERAL_ERROR = 1;
+export const ELEMENT_NOT_FOUND = 2;
+export const INVALID_PHONE  = 3;

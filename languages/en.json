@@ -1,6 +1,6 @@
 {
   "backToChat": "Back to Chats",
-  "typeMessage": "Type your message",
+  "typeMessage": "Type a message",
   "scheduledMessages": "Scheduled Messages",
   "exportToExcel": "Export to Excel",
   "participantsFromAllGroups": "Participants from all groups",
@@ -40,5 +40,10 @@
   "noValue": "No Value",
   "israel": "Israel",
   "usa": "United States",
-  "search": "Search"
+  "search": "Search",
+  "minute": "minute",
+  "hour" : "hour",
+  "date" : "date",
+  "second" : "second",
+  "seconds" : "seconds"
 }

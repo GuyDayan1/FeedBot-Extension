@@ -33,7 +33,6 @@
 .minute-container label,
 .date-container label {
     display: block;
-    text-align: right;
     margin-bottom: 2px;
     font-family: 'Roboto', sans-serif;
     font-weight: 700;

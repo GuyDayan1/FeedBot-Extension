@@ -16,14 +16,14 @@
   "content_scripts": [
     {
       "matches": ["https://web.whatsapp.com/*"],
-      "css": ["css/content.css" , "css/schedulermodal.css" , "css/contactsmodal.css" , "css/groupsmodal.css","css/cellframe.css" , "node_modules/sweetalert2/dist/sweetalert2.css" ,"css/variables.css"],
+      "css": ["css/content.css" , "css/schedulermodal.css" , "css/contactsmodal.css" , "css/groupsmodal.css","css/cellframe.css" , "css/bulkstate.css", "node_modules/sweetalert2/dist/sweetalert2.css" ,"css/variables.css"],
       "js": ["dist/bundle.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js"  , "node_modules/papaparse/papaparse.min.js"]
     }
   ],
 
   "web_accessible_resources": [
     {
-      "resources": ["images/*"  , "css/*" , "languages/*"],
+      "resources": ["images/*"  , "css/*" , "languages/*" ,"icons/*"],
       "matches": ["https://web.whatsapp.com/*"]
     }
   ],
