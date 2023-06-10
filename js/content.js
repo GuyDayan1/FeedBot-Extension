@@ -60,7 +60,7 @@ const headerElementObserver = new MutationObserver(async () => {
                 });
             }
             cellFrame = await ChromeUtils.sendChromeMessage({action: 'get-html-file', fileName: 'cellframe'})
-            clockSvg  = chrome.runtime.getURL('icons/clock-icon.svg');
+            clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
             WAInputPlaceholder = translation.typeMessage
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
@@ -88,7 +88,7 @@ async function initDataBases() {
 
 }
 
-async function updateClientState(state,sendingType) {
+async function updateClientState(state, sendingType) {
     client.state = state;
     client.sendingType = sendingType;
 }
@@ -157,7 +157,7 @@ function chatListener() {
                     .catch((error) => {
                         console.log(error)
                     });
-            }).catch(res=>{
+            }).catch(res => {
                 console.log(res)
             })
         })
@@ -369,9 +369,11 @@ async function exportAllGroupsParticipantsToExcel() {
 
 function refreshScheduledMessagesList() {
     let schedulerListContainer = document.getElementsByClassName('scheduler-messages-container')[0];
-    if (schedulerListContainer){
+    if (schedulerListContainer) {
         let messagesList = schedulerListContainer.querySelector('.messages-list')
-        if (messagesList) {messagesList.remove()}
+        if (messagesList) {
+            messagesList.remove()
+        }
         setTimeout(async () => {
             let newMessagesList = await createMessagesList();
             schedulerListContainer.appendChild(newMessagesList);
@@ -553,27 +555,29 @@ async function showBulkState() {
 
 function clearBulkState() {
     let bulkStateHtml = document.getElementsByClassName('bulk-state-container')[0]
-    if (bulkStateHtml){bulkStateHtml.remove()}
+    if (bulkStateHtml) {
+        bulkStateHtml.remove()
+    }
 }
 
 const startBulkSending = async (data) => {
-    await updateClientState(Globals.SENDING_STATE , Globals.BULK_SENDING)
+    await updateClientState(Globals.SENDING_STATE, Globals.BULK_SENDING)
     await showBulkState()
     let index = data.startIndex;
     let extra = data.extra
     const sendNextItem = () => {
-            if (index >= bulkSendingData.length) {
-                clearBulkState();
-                return;
-            }
-            const item = bulkSendingData[index]
-            executeContactSending(item).then((result) => {
-                index++;
-                sendNextItem()
-            }).catch(reason => {
-                index++;
-                sendNextItem()
-            })
+        if (index >= bulkSendingData.length) {
+            clearBulkState();
+            return;
+        }
+        const item = bulkSendingData[index]
+        executeContactSending(item).then((result) => {
+            index++;
+            sendNextItem()
+        }).catch(reason => {
+            index++;
+            sendNextItem()
+        })
 
     }
     sendNextItem()
@@ -581,7 +585,7 @@ const startBulkSending = async (data) => {
 
 const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
-    await updateClientState(Globals.UNUSED_STATE , Globals.SCHEDULED_SENDING)
+    await updateClientState(Globals.UNUSED_STATE, Globals.SCHEDULED_SENDING)
     let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.SECOND * 60;
     if ((relevantMessage || item.repeatSending) && (!item.messageSent && !item.deleted)) {
         if (client.state === Globals.SENDING_STATE) {
@@ -592,10 +596,10 @@ const sendScheduledMessage = async (id) => {
                 }
             }, 100)
         } else {
-            await updateClientState(Globals.SENDING_STATE , Globals.SCHEDULED_SENDING)
+            await updateClientState(Globals.SENDING_STATE, Globals.SCHEDULED_SENDING)
             if (item.chatType === Globals.CONTACT_PARAM) {
                 executeContactSending(item).then(async res => {
-                    await updateClientState(Globals.UNUSED_STATE , '')
+                    await updateClientState(Globals.UNUSED_STATE, '')
                     client.sendingType = "";
                     if (res.success) {
                         item.messageSent = true;
@@ -635,7 +639,7 @@ function executeContactSending(item) {
                 resolve({success, error});
             } else {
                 const chatDetails = await GeneralUtils.getChatDetails();
-                if (chatDetails.chatId === item.chatId  || chatDetails.chatId.includes(item.chatId)) {
+                if (chatDetails.chatId === item.chatId || chatDetails.chatId.includes(item.chatId)) {
                     clearInterval(waitForChatInterval);
                     const waitForTextInterval = setInterval(async () => {
                         const composeBoxElement = document.querySelector(WhatsAppGlobals.composeBoxElement);
@@ -645,7 +649,7 @@ function executeContactSending(item) {
                                 console.log("clear text interval")
                                 clearInterval(waitForTextInterval);
                                 try {
-                                        await GeneralUtils.waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', Globals.SECOND * 5).then(sendElement=>{
+                                    await GeneralUtils.waitForNodeWithTimeOut(document.body, 'span[data-testid="send"]', Globals.SECOND * 5).then(sendElement => {
                                         sendElement.click();
                                         p1.remove();
                                         success = true;
@@ -976,6 +980,7 @@ const showBulkSendingModal = async () => {
 
 
 const showSchedulerModal = async (data) => {
+    let state = {error: false, code: null}
     const container = document.createElement("div");
     container.className = "scheduler-modal-container";
     const messageTextArea = document.createElement("textarea");
@@ -984,55 +989,13 @@ const showSchedulerModal = async (data) => {
     messageTextArea.placeholder = translation.messageContent
     const schedulerTimeContainer = document.createElement('div');
     schedulerTimeContainer.className = 'scheduler-time-container';
-    const minuteContainer = document.createElement('div');
-    minuteContainer.className = 'minute-container';
-    const minuteLabel = document.createElement('label');
-    minuteLabel.style.textAlign = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "right" : "left"
-    minuteLabel.htmlFor = 'minute';
-    minuteLabel.textContent = GeneralUtils.capitalizeFirstLetter(translation.minute);
-    const minuteDropdown = document.createElement('select');
-    minuteDropdown.name = 'minutePicker';
-    minuteDropdown.id = 'minute';
-    minuteDropdown.className = 'custom-dropdown';
-    minuteContainer.appendChild(minuteLabel);
-    minuteContainer.appendChild(minuteDropdown);
-    const hourContainer = document.createElement('div');
-    hourContainer.className = 'hour-container';
-    const hourLabel = document.createElement('label');
-    hourLabel.style.textAlign = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "right" : "left"
-    hourLabel.htmlFor = 'hour';
-    hourLabel.textContent = GeneralUtils.capitalizeFirstLetter(translation.hour)
-    const hourDropdown = document.createElement('select');
-    hourDropdown.name = 'hourPicker';
-    hourDropdown.id = 'hour';
-    hourDropdown.className = 'custom-dropdown';
-    hourContainer.appendChild(hourLabel);
-    hourContainer.appendChild(hourDropdown);
-    const dateContainer = document.createElement('div');
-    dateContainer.className = 'date-container';
-    const dateLabel = document.createElement('label');
-    dateLabel.style.textAlign = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "right" : "left"
-    dateLabel.htmlFor = 'datepicker';
-    dateLabel.textContent = GeneralUtils.capitalizeFirstLetter(translation.date)
-    const dateInput = document.createElement('input');
-    dateInput.type = 'date';
-    dateInput.name = 'datePicker';
-    dateInput.id = 'datepicker';
-    dateInput.className = 'custom-date-input';
-    dateContainer.appendChild(dateLabel);
-    dateContainer.appendChild(dateInput);
-    schedulerTimeContainer.appendChild(minuteContainer);
-    schedulerTimeContainer.appendChild(hourContainer);
-    schedulerTimeContainer.appendChild(dateContainer);
-    GeneralUtils.addSelectOptions(hourDropdown, "hour")
-    GeneralUtils.addSelectOptions(minuteDropdown, "minute")
+    const datetimeInput = document.createElement('input');
+    datetimeInput.type = "datetime-local";
+    datetimeInput.id = "datetimeInput";
+    schedulerTimeContainer.appendChild(datetimeInput)
     if (data.type === Globals.NEW_MESSAGE) {
-        let currentDate = new Date();
-        dateInput.value = GeneralUtils.getDateAsString(currentDate)
-        hourDropdown.selectedIndex = currentDate.getHours();
-        minuteDropdown.selectedIndex = currentDate.getMinutes()
+        datetimeInput.value = GeneralUtils.getFullDateAsString(new Date())
         let textInput = document.querySelectorAll('[class*="text-input"]')[1];
-        console.log("Text Input: ", textInput)
         if (textInput.textContent !== WAInputPlaceholder) {
             messageTextArea.value = textInput.textContent
         }
@@ -1040,9 +1003,7 @@ const showSchedulerModal = async (data) => {
     if (data.type === Globals.EDIT_MESSAGE) {
         const item = await ChromeUtils.getScheduleMessageById(data.itemId)
         let date = new Date(item.scheduledTime)
-        dateInput.value = GeneralUtils.getDateAsString(date)
-        hourDropdown.selectedIndex = date.getHours();
-        minuteDropdown.selectedIndex = date.getMinutes()
+        datetimeInput.value = GeneralUtils.getFullDateAsString(date)
         messageTextArea.value = item.message;
     }
     container.appendChild(messageTextArea)
@@ -1057,20 +1018,32 @@ const showSchedulerModal = async (data) => {
         cancelButtonColor: '#d33',
         cancelButtonText: translation.confirmCancel,
         confirmButtonText: translation.approve,
+        preConfirm: () => {
+            state.error = true;
+            const messageText = messageTextArea.value.trim();
+            const scheduledTime = (new Date(datetimeInput.value)).getTime();
+            if (messageText.length > 0) {
+                if (scheduledTime > Date.now()) {
+                    state.error = false;
+                    state.code = null;
+                } else {
+                    state.code = Errors.INVALID_DATE
+                }
+            } else {
+                state.code = Errors.MISSING_TEXT;
+            }
+
+            if (!state.error){
+
+            }else {
+                /// TODO : continue
+                Swal.showValidationMessage(translation.mustToChooseAtLeastOneOption);
+                return false;
+            }
+        }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            let scheduleMessageWarning = {show: false, warningMessage: Globals.MESSAGE_MISSING_TEXT};
-            let messageText = messageTextArea.value.trim();
-            if (messageText.length === 0) {
-                scheduleMessageWarning.show = true;
-            }
-            let date = dateInput.value;
-            let hour = hourDropdown.value;
-            let minute = minuteDropdown.value;
-            if (minute < 10) {
-                minute = "0" + minute;
-            }
-            const dateTimeStr = date + " " + hour + ":" + minute;
+            const dateTimeStr = datetimeInput.value
             let scheduledTime = (new Date(dateTimeStr)).getTime();
             if (scheduledTime <= new Date().getTime()) {
                 scheduledTime = new Date().getTime()

@@ -179,6 +179,14 @@ export function getDateAsString(currentDate = new Date()) {
     let day = String(currentDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+export function getFullDateAsString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = ('0' + (date.getMonth() + 1)).slice(-2);
+    const day = ('0' + date.getDate()).slice(-2);
+    const hours = ('0' + date.getHours()).slice(-2);
+    const minutes = ('0' + date.getMinutes()).slice(-2);
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
 
 function clearModalFromDOM(containerClassName) {
     document.getElementsByClassName(containerClassName)[0].remove()
@@ -294,4 +302,8 @@ export function addSelectOptions(selector, selectorName) {
             }
         }
     }
+}
+
+export function getErrorMessage(errorCode) {
+
 }

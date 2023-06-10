@@ -37,6 +37,7 @@
   "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות",
   "bulkSending" : "שליחה בתפוצה",
   "fileMustToBeCSV" : "יש להעלות קובץ מסוג CSV בלבד",
+  "missingTextNotice" : "ההודעה חייבת להכיל טקסט",
   "deleteFile" : "מחק קובץ",
   "noValue": "ללא ערך",
   "israel" : "ישראל",
