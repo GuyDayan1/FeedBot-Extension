@@ -1,23 +1,27 @@
-let refreshTimeOut;
-
-
+import {MINUTE} from "./utils/globals";
 
 chrome.tabs.onActivated.addListener(function(activeInfo) {
     chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         const activeTab = tabs[0];
         if (activeTab.url.includes('web.whatsapp.com')) {
+            console.log(activeTab)
             setTimeout(()=>{
                 handleRepeatMessages()
-            },10000)
+            },5000)
         }
     });
+});
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (tab.url.includes('web.whatsapp.com')){
+        console.log(tab , changeInfo)
+    }
 });
 
 function handleRepeatMessages(){
         chrome.storage.local.get(["schedulerMessages"], (result) => {
                 const schedulerMessages = result.schedulerMessages || [];
                 const repeatMessages = schedulerMessages.filter(item=>{
-                    return (!item.messageSent && !item.deleted && item.repeatSending)
+                    return (!item.messageSent && !item.deleted && item.repeatSending && item.scheduledTime - Date.now() > MINUTE)
                 })
                 if (repeatMessages.length > 0){refreshWhatsAppTab()}
         });

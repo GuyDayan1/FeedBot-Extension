@@ -10,14 +10,13 @@ import Swal from "sweetalert2";
 let headerElement;
 let connected = false;
 let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
-
+let defaultUserImage;
 let bulkSendingData;
 let feedBotIcon;
 let cellFrame;
 let emptyMessagesAlert;
 let firstLoginDate;
-let modelStorageDB;
-let allContacts;
+let contacts;
 let modalBackdrop;
 let clockSvg;
 let WAInputPlaceholder = '';
@@ -61,6 +60,7 @@ const headerElementObserver = new MutationObserver(async () => {
             }
             cellFrame = await ChromeUtils.sendChromeMessage({action: 'get-html-file', fileName: 'cellframe'})
             clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
+            defaultUserImage = chrome.runtime.getURL("images/default-user.png");
             WAInputPlaceholder = translation.typeMessage
             feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
@@ -73,16 +73,16 @@ headerElementObserver.observe(document.body, {childList: true, subtree: true});
 
 const loadExtension = async () => {
     await initTranslations();
-    await initDataBases();
+    await getContacts();
     await setClientProperties();
     await getSvgWhatsAppElement();
     await initMessagesTimeOut();
     await chatListener();
 };
 
-async function initDataBases() {
-    modelStorageDB = await GeneralUtils.getDB("model-storage")
-    allContacts = await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
+async function getContacts() {
+    let modelStorageDB = await GeneralUtils.getDB("model-storage")
+    contacts = await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact' , 1).then((response) => {
         return response.result;
     })
 
@@ -97,7 +97,7 @@ async function setClientProperties() {
     firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
     if (!firstLoginDate) {
         ChromeUtils.clearStorage();
-        await ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getCurrentDateTime())
+        await ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getFullDateAsString())
     }
 }
 
@@ -142,26 +142,32 @@ async function initMessagesTimeOut() {
 }
 
 
+
+
 function chatListener() {
     GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
             GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
                 let currentChatDetails = await GeneralUtils.getChatDetails()
-                GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 3)
-                    .then((composeBoxElement) => {
-                        const clockIcon = composeBoxElement.querySelector('#clock-icon');
-                        if (!clockIcon && currentChatDetails.chatType === Globals.CONTACT_PARAM && currentChatDetails.chatId) {
-                            addSchedulerButton()
-                        }
-                    })
-                    .catch((error) => {
-                        console.log(error)
-                    });
+                addChatFeatures(currentChatDetails)
             }).catch(res => {
                 console.log(res)
             })
         })
     })
+
+    function addChatFeatures(currentChatDetails) {
+        GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.composeBoxElement, Globals.SECOND * 3)
+            .then((composeBoxElement) => {
+                const clockIcon = composeBoxElement.querySelector('#clock-icon');
+                if (!clockIcon && currentChatDetails.chatType === Globals.CONTACT_PARAM && currentChatDetails.chatId) {
+                    addSchedulerButton()
+                }
+            })
+            .catch((error) => {
+                console.log(error)
+            });
+    }
 }
 
 
@@ -183,11 +189,6 @@ async function getSvgWhatsAppElement() {
     })
 }
 
-
-async function removeFeedBotFeatures() {
-    const feedBotListFeatures = document.getElementsByClassName("fb-features-dropdown")[0];
-    feedBotIcon.removeChild(feedBotListFeatures)
-}
 
 async function addFeedBotFeatures() {
     const feedBotListFeatures = document.createElement("ul");
@@ -266,6 +267,7 @@ function createSvgElement(data) {
 
 
 async function getSelectedGroupsParticipants() {
+    let modelStorageDB = await GeneralUtils.getDB("model-storage")
     await GeneralUtils.getObjectStoresByKeyFromDB(modelStorageDB, 'group-metadata').then((response) => {
         const result = response.result;
         const filteredResult = result.filter(item => item.a_v_id != null);
@@ -280,7 +282,7 @@ async function exportContactsToExcel(selectedOption) {
     let headers;
     switch (selectedOption) {
         case Globals.SAVED_PARAM :
-            const savedContacts = allContacts.filter(item => {
+            const savedContacts = contacts.filter(item => {
                 return item.isAddressBookContact === 1;
             }).map(item => {
                 const phoneNumber = item.id.split('@')[0];
@@ -292,7 +294,7 @@ async function exportContactsToExcel(selectedOption) {
             ExcelUtils.exportToExcelFile(savedContacts, translation.savedContacts, headers)
             break;
         case Globals.UN_SAVED_PARAM:
-            const unSavedContacts = allContacts.filter(item => {
+            const unSavedContacts = contacts.filter(item => {
                 return item.isAddressBookContact === 0
             }).map(item => {
                 const phoneNumber = item.id.split('@')[0];
@@ -303,7 +305,7 @@ async function exportContactsToExcel(selectedOption) {
             ExcelUtils.exportToExcelFile(unSavedContacts, translation.unSavedContacts, headers)
             break;
         case Globals.ALL_PARAM:
-            const both = allContacts.map(item => {
+            const both = contacts.map(item => {
                 const phoneNumber = item.id.split('@')[0];
                 const phoneBookContactName = item.name || '';
                 const whatsappUserName = item.pushname || '';
@@ -318,6 +320,7 @@ async function exportContactsToExcel(selectedOption) {
 
 
 async function exportParticipantsByGroupIdsToExcel(groupsId) {
+    let modelStorageDB = await GeneralUtils.getDB("model-storage")
     let items = await GeneralUtils.getAllParticipantsFromIndexDB(modelStorageDB)
     let filteredItems = items.filter(item => {
         return ((groupsId.includes(item.groupId)) && (item.participants.length > 0 || true))
@@ -336,6 +339,7 @@ async function exportParticipantsByGroupIdsToExcel(groupsId) {
 
 async function addContactsNames(phones) {
     let newArray;
+    let modelStorageDB = await GeneralUtils.getDB("model-storage")
     await GeneralUtils.getAllObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact').then((response) => {
         const result = response.result;
         newArray = phones.map(phone => {
@@ -352,6 +356,7 @@ async function addContactsNames(phones) {
 
 
 async function exportAllGroupsParticipantsToExcel() {
+    let modelStorageDB = await GeneralUtils.getDB("model-storage")
     let items = await GeneralUtils.getAllParticipantsFromIndexDB(modelStorageDB)
     let participants = items.map(item => {
         if (item.participants.length > 0 || true) {
@@ -495,7 +500,6 @@ function addSchedulerButton() {
         const clockIcon = new Image();
         clockIcon.id = "clock-icon"
         clockIcon.title = translation.scheduleMessage;
-        //clockIcon.onload = () => {composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)};
         clockIcon.src = clockSvg;
         composeBoxElement.childNodes[1].childNodes[0].childNodes[1].appendChild(clockIcon)
         clockIcon.addEventListener('click', async () => {
@@ -507,37 +511,32 @@ function addSchedulerButton() {
 
 
 async function handleConfirmButtonClick(messageData) {
-    if (!messageData.scheduleMessageWarning.show) {
-        if (messageData.messageType === Globals.NEW_MESSAGE) {
-            ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
-                const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
-                saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
-                    refreshScheduledMessagesList()
-                    let position = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'bottom-end' : 'bottom-start'
-                    showToastMessage(position, 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
-                }).catch((error) => {
-                    console.log(error, "save message")
-                })
-            }).catch((onerror) => {
-                console.log(onerror.message, "get scheduler messages")
+    if (messageData.messageType === Globals.NEW_MESSAGE) {
+        ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
+            const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
+            saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
+                refreshScheduledMessagesList()
+                let position = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'bottom-end' : 'bottom-start'
+                showToastMessage(position, 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
+            }).catch((error) => {
+                console.log(error, "save message")
             })
-        }
-        if (messageData.messageType === Globals.EDIT_MESSAGE) {
-            ChromeUtils.getScheduleMessageById(messageData.itemId).then(result => {
-                let updatedItem = result;
-                updatedItem.message = messageData.messageText;
-                updatedItem.scheduledTime = messageData.scheduledTime;
-                updatedItem.dateTimeStr = messageData.dateTimeStr;
-                ChromeUtils.updateItem(updatedItem).then(r => {
-                    initMessagesTimeOut()
-                    refreshScheduledMessagesList()
-                })
-            })
-        }
-    } else {
-        showErrorModal(messageData.scheduleMessageWarning.warningMessage)
+        }).catch((onerror) => {
+            console.log(onerror.message, "get scheduler messages")
+        })
     }
-
+    if (messageData.messageType === Globals.EDIT_MESSAGE) {
+        ChromeUtils.getScheduleMessageById(messageData.itemId).then(result => {
+            let updatedItem = result;
+            updatedItem.message = messageData.messageText;
+            updatedItem.scheduledTime = messageData.scheduledTime;
+            updatedItem.dateTimeStr = messageData.dateTimeStr;
+            ChromeUtils.updateItem(updatedItem).then(r => {
+                initMessagesTimeOut()
+                refreshScheduledMessagesList()
+            })
+        })
+    }
 }
 
 async function showBulkState() {
@@ -586,7 +585,7 @@ const startBulkSending = async (data) => {
 const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
     await updateClientState(Globals.UNUSED_STATE, Globals.SCHEDULED_SENDING)
-    let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.SECOND * 60;
+    let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.MINUTE;
     if ((relevantMessage || item.repeatSending) && (!item.messageSent && !item.deleted)) {
         if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
@@ -689,12 +688,17 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
         try {
             let currentChatDetails = await GeneralUtils.getChatDetails()
             const conversationHeaderElement = document.querySelector(WhatsAppGlobals.conversationHeaderElement);
-            const foundItem = allContacts.find(item => {
+            const foundItem = contacts.find(item => {
                 let itemPhone = item.id.split('@')[0]
                 return currentChatDetails.chatId.includes(itemPhone)
             })
-            let chatName = foundItem.name ? foundItem.name : currentChatDetails.media || '';
-            const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src || chrome.runtime.getURL("images/default-user.png");
+            let chatName;
+            if (foundItem){
+                chatName = foundItem.name
+            }else {
+                chatName = "+" + currentChatDetails.media
+            }
+            const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src || defaultUserImage
             const elapsedTime = scheduledTime - new Date().getTime();
             const warnBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
             const data = {
@@ -712,7 +716,6 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 repeatSending: false,
                 messageSent: false,
                 deleted: false,
-                error: null
             };
             const currentSchedulerMessages = await ChromeUtils.getSchedulerMessages();
             const updatedSchedulerMessages = [...currentSchedulerMessages, data];
@@ -980,19 +983,25 @@ const showBulkSendingModal = async () => {
 
 
 const showSchedulerModal = async (data) => {
-    let state = {error: false, code: null}
+    let state = {success: false, errorCode: null, scheduledTime: null, messageText: '', dateTimeStr: null}
     const container = document.createElement("div");
     container.className = "scheduler-modal-container";
     const messageTextArea = document.createElement("textarea");
     messageTextArea.id = "message"
     messageTextArea.className = "fb-textarea";
     messageTextArea.placeholder = translation.messageContent
-    const schedulerTimeContainer = document.createElement('div');
-    schedulerTimeContainer.className = 'scheduler-time-container';
+    const datetimeContainer = document.createElement('div');
+    datetimeContainer.className = "date-container";
+    datetimeContainer.style.direction = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "rtl" : "ltr"
+    const dateTimeLabel = document.createElement('label');
+    dateTimeLabel.className = "fb-label";
+    dateTimeLabel.textContent = translation.chooseScheduleTime
     const datetimeInput = document.createElement('input');
     datetimeInput.type = "datetime-local";
     datetimeInput.id = "datetimeInput";
-    schedulerTimeContainer.appendChild(datetimeInput)
+    datetimeInput.className = "fb-date-picker"
+    datetimeContainer.appendChild(dateTimeLabel)
+    datetimeContainer.appendChild(datetimeInput)
     if (data.type === Globals.NEW_MESSAGE) {
         datetimeInput.value = GeneralUtils.getFullDateAsString(new Date())
         let textInput = document.querySelectorAll('[class*="text-input"]')[1];
@@ -1007,7 +1016,7 @@ const showSchedulerModal = async (data) => {
         messageTextArea.value = item.message;
     }
     container.appendChild(messageTextArea)
-    container.appendChild(schedulerTimeContainer)
+    container.appendChild(datetimeContainer)
     Swal.fire({
         title: translation.scheduleMessage,
         html: container,
@@ -1019,55 +1028,32 @@ const showSchedulerModal = async (data) => {
         cancelButtonText: translation.confirmCancel,
         confirmButtonText: translation.approve,
         preConfirm: () => {
-            state.error = true;
-            const messageText = messageTextArea.value.trim();
-            const scheduledTime = (new Date(datetimeInput.value)).getTime();
-            if (messageText.length > 0) {
-                if (scheduledTime > Date.now()) {
-                    state.error = false;
-                    state.code = null;
+            state.success = false;
+            state.messageText = messageTextArea.value.trim();
+            state.scheduledTime = (new Date(datetimeInput.value)).getTime();
+            if (state.messageText.length > 0) {
+                if (state.scheduledTime > Date.now()) {
+                    state.success = true;
+                    state.errorCode = null;
                 } else {
-                    state.code = Errors.INVALID_DATE
+                    state.errorCode = Errors.INVALID_DATE
                 }
             } else {
-                state.code = Errors.MISSING_TEXT;
+                state.errorCode = Errors.MISSING_TEXT;
             }
-
-            if (!state.error){
-
-            }else {
-                /// TODO : continue
-                Swal.showValidationMessage(translation.mustToChooseAtLeastOneOption);
+            if (state.success) {
+                state.dateTimeStr = datetimeInput.value.replace('T', ' ')
+                return true;
+            } else {
+                let errorMessage = getErrorMessage(state.errorCode)
+                Swal.showValidationMessage(errorMessage);
                 return false;
             }
         }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            const dateTimeStr = datetimeInput.value
-            let scheduledTime = (new Date(dateTimeStr)).getTime();
-            if (scheduledTime <= new Date().getTime()) {
-                scheduledTime = new Date().getTime()
-            }
-            let messageData;
-            if (data.type === Globals.NEW_MESSAGE) {
-                messageData = {
-                    messageType: Globals.NEW_MESSAGE,
-                    scheduleMessageWarning,
-                    messageText,
-                    dateTimeStr,
-                    scheduledTime
-                }
-            }
-            if (data.type === Globals.EDIT_MESSAGE) {
-                messageData = {
-                    messageType: Globals.EDIT_MESSAGE,
-                    itemId: data.itemId,
-                    scheduleMessageWarning,
-                    messageText,
-                    dateTimeStr,
-                    scheduledTime
-                }
-            }
+            let messageData = {messageType : '' ,messageText: state.messageText, dateTimeStr : state.dateTimeStr,scheduledTime: state.scheduledTime};
+            messageData.messageType = data.type === Globals.NEW_MESSAGE ? Globals.NEW_MESSAGE : Globals.EDIT_MESSAGE;
             await handleConfirmButtonClick(messageData)
         }
     })
@@ -1258,3 +1244,18 @@ const showToastMessage = (position, timer, timerProgressBar, title, iconType) =>
 
 
 
+function getErrorMessage(errorCode) {
+    let errorMessage;
+    switch (errorCode) {
+        case Errors.INVALID_PHONE:
+            errorMessage = translation.invalidPhoneNotice;
+            break;
+        case Errors.MISSING_TEXT:
+            errorMessage = translation.messageMustContainsText;
+            break;
+        case Errors.INVALID_DATE:
+            errorMessage = translation.invalidDateNotice;
+            break;
+    }
+    return errorMessage
+}

@@ -46,5 +46,14 @@
   "hour" : "hour",
   "date" : "date",
   "second" : "second",
-  "seconds" : "seconds"
+  "seconds" : "seconds",
+  "invalidPhoneNotice": "Invalid phone number",
+  "messageMustContainsText": "The message must contain text",
+  "invalidDateNotice": "Invalid date",
+  "chooseScheduleTime" : "Choose a time"
+
+
+
+
+
 }

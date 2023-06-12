@@ -47,5 +47,9 @@
   "hour" : "שעה",
   "date" : "תאריך",
   "second" : "שניה",
-  "seconds" : "שניות"
+  "seconds" : "שניות",
+  "invalidPhoneNotice": "טלפון לא תקין",
+  "messageMustContainsText" : "ההודעה חייבת להכיל טקסט",
+  "invalidDateNotice" : "התאריך לא חוקי",
+  "chooseScheduleTime" : "בחר זמן"
 }
