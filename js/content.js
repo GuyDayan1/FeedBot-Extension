@@ -585,7 +585,7 @@ const startBulkSending = async (data) => {
 const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
     await updateClientState(Globals.UNUSED_STATE, Globals.SCHEDULED_SENDING)
-    let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.MINUTE;
+    let relevantMessage = (Date.now() - item.scheduledTime) <= Globals.MINUTE;
     if ((relevantMessage || item.repeatSending) && (!item.messageSent && !item.deleted)) {
         if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
