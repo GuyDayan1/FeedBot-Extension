@@ -36,6 +36,7 @@
   "mustToChooseAtLeastOneOption": "You must choose at least one option",
   "bulkSending": "Bulk Sending",
   "fileMustToBeCSV": "The file must be in CSV format",
+  "missingTextNotice" : "Message must contains text",
   "deleteFile": "Delete File",
   "noValue": "No Value",
   "israel": "Israel",
@@ -45,5 +46,14 @@
   "hour" : "hour",
   "date" : "date",
   "second" : "second",
-  "seconds" : "seconds"
+  "seconds" : "seconds",
+  "invalidPhoneNotice": "Invalid phone number",
+  "messageMustContainsText": "The message must contain text",
+  "invalidDateNotice": "Invalid date",
+  "chooseScheduleTime" : "Choose a time"
+
+
+
+
+
 }

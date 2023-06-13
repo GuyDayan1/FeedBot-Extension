@@ -37,6 +37,7 @@
   "mustToChooseAtLeastOneOption" : "יש לבחור לפחות אחת מהאפשרויות",
   "bulkSending" : "שליחה בתפוצה",
   "fileMustToBeCSV" : "יש להעלות קובץ מסוג CSV בלבד",
+  "missingTextNotice" : "ההודעה חייבת להכיל טקסט",
   "deleteFile" : "מחק קובץ",
   "noValue": "ללא ערך",
   "israel" : "ישראל",
@@ -46,5 +47,9 @@
   "hour" : "שעה",
   "date" : "תאריך",
   "second" : "שניה",
-  "seconds" : "שניות"
+  "seconds" : "שניות",
+  "invalidPhoneNotice": "טלפון לא תקין",
+  "messageMustContainsText" : "ההודעה חייבת להכיל טקסט",
+  "invalidDateNotice" : "התאריך לא חוקי",
+  "chooseScheduleTime" : "בחר זמן"
 }

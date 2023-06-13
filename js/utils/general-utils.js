@@ -1,5 +1,6 @@
 import * as Globals from "./globals";
 import {ISR_PREFIX, ISRAEL_PARAM} from "./globals";
+import * as Errors from "./errors";
 
 export async function clearChildesFromParent(parentNode) {
     while (parentNode.firstChild) {
@@ -144,16 +145,16 @@ export const addScrollingAbility = (list, maxHeight) => {
     list.style.overflowY = "scroll"
 }
 
-export function getCurrentDateTime() {
-    const currentDate = new Date();
-    const day = String(currentDate.getDate()).padStart(2, '0');
-    const month = String(currentDate.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-    const year = currentDate.getFullYear();
-    const hours = String(currentDate.getHours()).padStart(2, '0');
-    const minutes = String(currentDate.getMinutes()).padStart(2, '0');
-    const seconds = String(currentDate.getSeconds()).padStart(2, '0');
-    return `${day}/${month}/${year} , ${hours}:${minutes}:${seconds}`;
-}
+// export function getCurrentDateTime() {
+//     const currentDate = new Date();
+//     const day = String(currentDate.getDate()).padStart(2, '0');
+//     const month = String(currentDate.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+//     const year = currentDate.getFullYear();
+//     const hours = String(currentDate.getHours()).padStart(2, '0');
+//     const minutes = String(currentDate.getMinutes()).padStart(2, '0');
+//     const seconds = String(currentDate.getSeconds()).padStart(2, '0');
+//     return `${day}/${month}/${year} , ${hours}:${minutes}:${seconds}`;
+// }
 
 function addModalToDOM(modalContainer) {
     let modalBackdrop = document.createElement('div');
@@ -179,6 +180,18 @@ export function getDateAsString(currentDate = new Date()) {
     let day = String(currentDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+export function getFullDateAsString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = ('0' + (date.getMonth() + 1)).slice(-2);
+    const day = ('0' + date.getDate()).slice(-2);
+    const hours = ('0' + date.getHours()).slice(-2);
+    const minutes = ('0' + date.getMinutes()).slice(-2);
+    const seconds = ('0' + date.getSeconds()).slice(-2);
+    const dateString = `${year}-${month}-${day}`;
+    const timeString = `${hours}:${minutes}`;
+    return `${dateString} ${timeString}`;
+}
+
 
 function clearModalFromDOM(containerClassName) {
     document.getElementsByClassName(containerClassName)[0].remove()
@@ -295,3 +308,4 @@ export function addSelectOptions(selector, selectorName) {
         }
     }
 }
+
