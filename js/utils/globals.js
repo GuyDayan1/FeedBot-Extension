@@ -36,3 +36,5 @@ export const USA_PARAM = 'usa';
 export const ISR_PREFIX = '972'
 export const USA_PREFIX = '1'
 
+export const UPDATE_CLIENT_ACTION = "update-client";
+export const GET_HTML_FILE_ACTION = 'get-html-file'

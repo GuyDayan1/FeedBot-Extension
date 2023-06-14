@@ -57,7 +57,6 @@ export function getActiveSchedulerMessages(){
 export function getFromLocalStorage(key){
     return new Promise(((resolve,reject) => {
         chrome.storage.local.get(key , (result)=>{
-            console.log(result)
             if (chrome.runtime.lastError){
                 console.log("There was an error retrieving the key."  , key);
                 reject(chrome.runtime.lastError);

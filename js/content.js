@@ -17,9 +17,9 @@ let cellFrame;
 let emptyMessagesAlert;
 let firstLoginDate;
 let contacts;
-let modalBackdrop;
 let clockSvg;
 let WAInputPlaceholder = '';
+let unSentMessagesIds = []
 let activeMessagesTimeout = {};
 let translation = {}
 let GenericSvgElement;
@@ -58,7 +58,10 @@ const headerElementObserver = new MutationObserver(async () => {
                     }
                 });
             }
-            cellFrame = await ChromeUtils.sendChromeMessage({action: 'get-html-file', fileName: 'cellframe'})
+            cellFrame = await ChromeUtils.sendChromeMessage({
+                action: Globals.GET_HTML_FILE_ACTION,
+                fileName: 'cellframe'
+            })
             clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
             defaultUserImage = chrome.runtime.getURL("images/default-user.png");
             WAInputPlaceholder = translation.typeMessage
@@ -77,20 +80,21 @@ const loadExtension = async () => {
     await setClientProperties();
     await getSvgWhatsAppElement();
     await initMessagesTimeOut();
-    await chatListener();
+    await DOMListener();
 };
 
 async function getContacts() {
     let modelStorageDB = await GeneralUtils.getDB("model-storage")
-    contacts = await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact' , 1).then((response) => {
+    contacts = await GeneralUtils.getObjectStoreByIndexFromDb(modelStorageDB, 'contact', 'isAddressBookContact', 1).then((response) => {
         return response.result;
     })
 
 }
 
-async function updateClientState(state, sendingType) {
+function updateClientState(state, sendingType) {
     client.state = state;
     client.sendingType = sendingType;
+
 }
 
 async function setClientProperties() {
@@ -136,23 +140,31 @@ async function initMessagesTimeOut() {
             await setTimeOutForMessage(currentMessage.id, currentMessage.chatName, elapsedTime, currentMessage.warnBeforeSending);
         }
         if (unSentMessages.length > 0) {
-            showUnSentMessagesPopup(unSentMessages)
+            showUnSentMessagesModal(unSentMessages)
         }
     })
 }
 
 
-
-
-function chatListener() {
+function DOMListener() {
     GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
+            if (unSentMessagesIds.length > 0) {
+                ChromeUtils.getSchedulerMessages().then(result=>{
+                    let unSentMessages = result.filter(item=>{
+                        return unSentMessagesIds.some(id=>  id === item.id)
+                    })
+                    unSentMessagesIds = []
+                    showUnSentMessagesModal(unSentMessages)
+                })
+            }
             GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
                 let currentChatDetails = await GeneralUtils.getChatDetails()
                 addChatFeatures(currentChatDetails)
             }).catch(res => {
                 console.log(res)
             })
+
         })
     })
 
@@ -585,7 +597,7 @@ const startBulkSending = async (data) => {
 const sendScheduledMessage = async (id) => {
     const item = await ChromeUtils.getScheduleMessageById(id);
     await updateClientState(Globals.UNUSED_STATE, Globals.SCHEDULED_SENDING)
-    let relevantMessage = (new Date().getTime() - item.scheduledTime) <= Globals.MINUTE;
+    let relevantMessage = (new Date().getTime() - item.scheduledTime) <= 1 * Globals.MINUTE;
     if ((relevantMessage || item.repeatSending) && (!item.messageSent && !item.deleted)) {
         if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
@@ -599,7 +611,6 @@ const sendScheduledMessage = async (id) => {
             if (item.chatType === Globals.CONTACT_PARAM) {
                 executeContactSending(item).then(async res => {
                     await updateClientState(Globals.UNUSED_STATE, '')
-                    client.sendingType = "";
                     if (res.success) {
                         item.messageSent = true;
                         await ChromeUtils.updateItem(item);
@@ -613,9 +624,9 @@ const sendScheduledMessage = async (id) => {
         if (!item.deleted) {
             item.repeatSending = true;
             await ChromeUtils.updateItem(item);
+            unSentMessagesIds.push(...unSentMessagesIds, item.id)
         }
     }
-
 }
 
 function executeContactSending(item) {
@@ -693,9 +704,9 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 return currentChatDetails.chatId.includes(itemPhone)
             })
             let chatName;
-            if (foundItem){
+            if (foundItem) {
                 chatName = foundItem.name
-            }else {
+            } else {
                 chatName = "+" + currentChatDetails.media
             }
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src || defaultUserImage
@@ -818,7 +829,7 @@ const showErrorModal = (message) => {
 }
 
 
-const showUnSentMessagesPopup = (unSentMessages) => {
+const showUnSentMessagesModal = (unSentMessages) => {
     const container = document.createElement("div");
     container.className = "un-sent-container";
     const headline = document.createElement("div");
@@ -852,7 +863,6 @@ const showUnSentMessagesPopup = (unSentMessages) => {
                 await sendScheduledMessage(item.id)
             }
         }
-
         if (result.isDismissed || result.dismiss) {
             unSentMessages.forEach(item => {
                 item.deleted = true;
@@ -861,7 +871,6 @@ const showUnSentMessagesPopup = (unSentMessages) => {
             })
         }
     });
-
 }
 
 
@@ -871,7 +880,7 @@ const showBulkSendingModal = async () => {
     let state = {message: '', csvFile: false}
     try {
         const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage({
-            action: 'get-html-file',
+            action: Globals.GET_HTML_FILE_ACTION,
             fileName: 'bulksendmodal'
         });
         Swal.fire({
@@ -1052,7 +1061,12 @@ const showSchedulerModal = async (data) => {
         }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            let messageData = {messageType : '' ,messageText: state.messageText, dateTimeStr : state.dateTimeStr,scheduledTime: state.scheduledTime};
+            let messageData = {
+                messageType: '',
+                messageText: state.messageText,
+                dateTimeStr: state.dateTimeStr,
+                scheduledTime: state.scheduledTime
+            };
             messageData.messageType = data.type === Globals.NEW_MESSAGE ? Globals.NEW_MESSAGE : Globals.EDIT_MESSAGE;
             await handleConfirmButtonClick(messageData)
         }
@@ -1239,9 +1253,6 @@ const showToastMessage = (position, timer, timerProgressBar, title, iconType) =>
         title: title
     })
 }
-
-
-
 
 
 function getErrorMessage(errorCode) {
