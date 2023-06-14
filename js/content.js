@@ -522,11 +522,11 @@ function addSchedulerButton() {
 }
 
 
-async function handleConfirmButtonClick(messageData) {
-    if (messageData.messageType === Globals.NEW_MESSAGE) {
+async function handleConfirmButtonClick(itemData) {
+    if (itemData.messageType === Globals.NEW_MESSAGE) {
         ChromeUtils.getSchedulerMessages().then((schedulerMessages) => {
             const id = schedulerMessages.length === 0 ? 0 : schedulerMessages.length;
-            saveMessage(id, messageData.messageText, messageData.scheduledTime, messageData.dateTimeStr).then((result) => {
+            saveMessage(id, itemData.messageText, itemData.scheduledTime, itemData.dateTimeStr).then((result) => {
                 refreshScheduledMessagesList()
                 let position = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'bottom-end' : 'bottom-start'
                 showToastMessage(position, 2 * Globals.SECOND, false, translation.messageSavedSuccessfully, 'success')
@@ -537,12 +537,12 @@ async function handleConfirmButtonClick(messageData) {
             console.log(onerror.message, "get scheduler messages")
         })
     }
-    if (messageData.messageType === Globals.EDIT_MESSAGE) {
-        ChromeUtils.getScheduleMessageById(messageData.itemId).then(result => {
+    if (itemData.messageType === Globals.EDIT_MESSAGE) {
+        ChromeUtils.getScheduleMessageById(itemData.itemId).then(result => {
             let updatedItem = result;
-            updatedItem.message = messageData.messageText;
-            updatedItem.scheduledTime = messageData.scheduledTime;
-            updatedItem.dateTimeStr = messageData.dateTimeStr;
+            updatedItem.message = itemData.messageText;
+            updatedItem.scheduledTime = itemData.scheduledTime;
+            updatedItem.dateTimeStr = itemData.dateTimeStr;
             ChromeUtils.updateItem(updatedItem).then(r => {
                 initMessagesTimeOut()
                 refreshScheduledMessagesList()
@@ -1061,14 +1061,17 @@ const showSchedulerModal = async (data) => {
         }
     }).then(async (result) => {
         if (result.isConfirmed) {
-            let messageData = {
+            let itemData = {
                 messageType: '',
                 messageText: state.messageText,
                 dateTimeStr: state.dateTimeStr,
-                scheduledTime: state.scheduledTime
+                scheduledTime: state.scheduledTime,
             };
-            messageData.messageType = data.type === Globals.NEW_MESSAGE ? Globals.NEW_MESSAGE : Globals.EDIT_MESSAGE;
-            await handleConfirmButtonClick(messageData)
+            itemData.messageType = data.type === Globals.NEW_MESSAGE ? Globals.NEW_MESSAGE : Globals.EDIT_MESSAGE;
+            if (data.type === Globals.EDIT_MESSAGE){
+                itemData.itemId = data.itemId;
+            }
+            await handleConfirmButtonClick(itemData)
         }
     })
 }

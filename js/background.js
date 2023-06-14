@@ -1,7 +1,8 @@
+import {GET_HTML_FILE_ACTION} from "./utils/globals";
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     let data = request.data;
-    if (data.action === 'get-html-file'){
+    if (data.action === GET_HTML_FILE_ACTION){
         let htmlFileName = data.fileName;
         getHtmlFile(htmlFileName)
             .then(htmlFile => {sendResponse({ data: htmlFile });})
