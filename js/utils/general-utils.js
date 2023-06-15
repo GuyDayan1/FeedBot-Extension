@@ -34,6 +34,19 @@ export const deleteTextInput = async (inputElement) => {
         await new Promise((resolve) => setTimeout(resolve, 100)); // Wait for a short delay before each delete action
     }
 };
+
+function typeOnInput(input,text) {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text', text);
+    const event = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true
+    });
+    input.click()
+    setTimeout(() => {
+        input.dispatchEvent(event)
+    }, 1000)
+}
 export function listFadeIn(element, duration) {
     let start = performance.now();
     element.style.opacity = "0";
@@ -260,6 +273,11 @@ export function formatPhoneNumber(phoneNumber, formatType) {
     }
     return newPhone;
 }
+
+export function removeNonDigits(str) {
+    return str.replace(/\D/g, '');
+}
+
 export function waitForNode(parentNode, selector) {
     return new Promise((resolve, reject) => {
         const interval = setInterval(() => {

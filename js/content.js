@@ -65,7 +65,7 @@ const headerElementObserver = new MutationObserver(async () => {
             clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
             defaultUserImage = chrome.runtime.getURL("images/default-user.png");
             WAInputPlaceholder = translation.typeMessage
-            feedBotListOptions.push(translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
+            feedBotListOptions.push(translation.sendingByPhoneNumber,translation.scheduledMessages, translation.bulkSending, translation.exportToExcel)
             excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
         })
         //ChromeUtils.clearStorage()
@@ -146,6 +146,8 @@ async function initMessagesTimeOut() {
 }
 
 
+
+
 function DOMListener() {
     GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
         document.body.addEventListener('click', (e) => {
@@ -214,6 +216,11 @@ async function addFeedBotFeatures() {
         feedBotListItem.appendChild(textSpan)
         feedBotListFeatures.appendChild(feedBotListItem);
         switch (feedBotListOptions[i]) {
+            case translation.sendingByPhoneNumber:
+                feedBotListItem.addEventListener('click', ()=>{
+                    showSendByPhoneNumberModal()
+                })
+                break;
             case translation.scheduledMessages:
                 feedBotListItem.addEventListener("click", () => {
                     showScheduledMessages()
@@ -398,6 +405,32 @@ function refreshScheduledMessagesList() {
     }
 
 
+}
+function showSendByPhoneNumberModal() {
+    Swal.fire({
+        title: translation.sendingByPhoneNumber,
+        input: "text",
+        inputAutoTrim: true,
+        inputLabel: translation.enterPhoneNumber,
+        inputPlaceholder: translation.phoneNumber,
+        inputAttributes: {
+            id: 'phone-input' // Set the desired ID here
+        },
+        allowOutsideClick: false,
+        showCancelButton: true,
+        showCloseButton: true,
+        reverseButtons: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonText: translation.approve,
+    }).then((result) => {
+        if (result.isConfirmed) {
+            let phoneNumber = GeneralUtils.removeNonDigits(result.value)
+            console.log(phoneNumber)
+
+        }
+    });
 }
 
 async function showScheduledMessages() {
@@ -1131,7 +1164,6 @@ const showGroupsModal = (result) => {
             const checkedCheckboxes = checkboxesArray.filter(checkbox => checkbox.checked);
             const checkedValues = checkedCheckboxes.map(checkbox => checkbox.value);
             if (checkedValues.length > 0) {
-                //console.log('Selected option:', checkedValues);
                 return checkedValues;
             } else {
                 // Show an error message and prevent modal from closing
@@ -1142,9 +1174,7 @@ const showGroupsModal = (result) => {
     }).then((result) => {
         if (result.isConfirmed) {
             const groupsId = result.value;
-            exportParticipantsByGroupIdsToExcel(groupsId).then(r => {
-                //console.log("export successfully")
-            })
+            exportParticipantsByGroupIdsToExcel(groupsId).then(r => {})
         }
     });
 

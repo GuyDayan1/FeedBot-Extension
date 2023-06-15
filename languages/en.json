@@ -50,7 +50,12 @@
   "invalidPhoneNotice": "Invalid phone number",
   "messageMustContainsText": "The message must contain text",
   "invalidDateNotice": "Invalid date",
-  "chooseScheduleTime" : "Choose a time"
+  "chooseScheduleTime" : "Choose a time",
+  "sendingByPhoneNumber" : "Sending by phone number",
+  "enterPhoneNumber" : "Enter phone number",
+  "invalidPhoneNumber" : "Invalid Phone Number"
+
+
 
 
 
