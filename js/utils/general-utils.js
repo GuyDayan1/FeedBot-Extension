@@ -35,18 +35,19 @@ export const deleteTextInput = async (inputElement) => {
     }
 };
 
-function typeOnInput(input,text) {
+const typeOnInput = (input,text) => {
     const dataTransfer = new DataTransfer();
     dataTransfer.setData('text', text);
     const event = new ClipboardEvent('paste', {
         clipboardData: dataTransfer,
         bubbles: true
     });
-    input.click()
     setTimeout(() => {
         input.dispatchEvent(event)
     }, 1000)
 }
+
+
 export function listFadeIn(element, duration) {
     let start = performance.now();
     element.style.opacity = "0";
