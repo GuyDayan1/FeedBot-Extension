@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h2 class="fb-header"></h2>
+<div class="lang-container">
+    <div class="hebrew-lang-container">
+        <input type="radio" id="hebrewRadio" name="language" value="hebrew">
+        <label for="hebrewRadio" class="fb-label">Hebrew</label>
+    </div>
+    <div class="english-lang-container">
+        <input type="radio" id="englishRadio" name="language" value="english">
+        <label for="englishRadio" class="fb-label-label">English</label>
+    </div>
+</div>
+
+<h2>Bulk Sending Settings</h2>
+<p>Option 1: Timeout between each message:</p>
+<label for="messageTimeout"></label>
+<input type="number" id="messageTimeout" placeholder="Enter timeout in seconds">
+<p>Option 2: After a certain number of messages, timeout for a specific duration:</p>
+<label for="bulkMessages"></label><input type="number" id="bulkMessages" placeholder="Enter number of messages">
+<label for="bulkTimeout"></label><input type="number" id="bulkTimeout" placeholder="Enter timeout in seconds">
+</body>
+</html>
