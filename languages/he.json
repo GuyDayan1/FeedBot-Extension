@@ -3,6 +3,7 @@
   "typeMessage" : "הקלדת ההודעה" ,
   "scheduledMessages" : "הודעות מתוזמנות",
   "exportToExcel" : "יצא לאקסל" ,
+  "settings" : "הגדרות",
   "participantsFromAllGroups" : "משתתפים מכל הקבוצות הקיימות",
   "participantsFromSelectedGroups" : "משתתפים לפי בחירה מקבוצות",
   "contacts" : "אנשי הקשר",

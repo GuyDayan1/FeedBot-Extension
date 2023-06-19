@@ -3,6 +3,7 @@
   "typeMessage": "Type a message",
   "scheduledMessages": "Scheduled Messages",
   "exportToExcel": "Export to Excel",
+  "settings" : "Settings",
   "participantsFromAllGroups": "Participants from all groups",
   "participantsFromSelectedGroups": "Participants from selected groups",
   "contacts": "Contacts",
@@ -53,7 +54,7 @@
   "chooseScheduleTime" : "Choose a time",
   "sendingByPhoneNumber" : "Sending by phone number",
   "enterPhoneNumber" : "Enter phone number",
-  "invalidPhoneNumber" : "Invalid Phone Number"
+  "invalidPhoneNumber" : "Invalid phone number"
 
 
 

@@ -6,6 +6,10 @@ export const USER_TYPING_WARNING_TIME = 5;
 export const SECOND = 1000;
 export const MINUTE = SECOND * 60
 
+export const MINIMUM_PHONE_NUMBER_LENGTH_REQUIRES = 5 ;
+
+export const WHATSAPP_URL = "https://web.whatsapp.com"
+
 export const GROUP_PARAM = "group";
 export const CONTACT_PARAM = "contact"
 

@@ -1,6 +1,5 @@
 import * as Globals from "./globals";
 import {ISR_PREFIX, ISRAEL_PARAM} from "./globals";
-import * as Errors from "./errors";
 
 export async function clearChildesFromParent(parentNode) {
     while (parentNode.firstChild) {
@@ -24,9 +23,24 @@ export function sleep(seconds) {
     return new Promise(resolve => setTimeout(resolve, seconds * 1000));
 }
 
-export const simulateKeyPress = (type, keyName) => {    //type = which action to do simulate  , keyName = which key to action
-    document.dispatchEvent(new KeyboardEvent(type, {'key': keyName}));
+export const simulateKeyPress = (type, keyName) => {
+    document.dispatchEvent(new KeyboardEvent(type, { key: keyName, bubbles: true }));
+};
+
+
+export function removeLeadingZeros(phoneNumber) {
+    let numberString = phoneNumber.toString();
+    numberString = numberString.replace(/^0+/, '');
+    return numberString
 }
+
+export function convertToTitle(input) {
+    const words = input.toLowerCase().split(' ');
+    const titleCaseWords = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+    return titleCaseWords.join(' ');   // Join the title case words back into a single string
+}
+
+
 export const deleteTextInput = async (inputElement) => {
     while (inputElement.textContent.length > 0) {
         simulateKeyPress('keydown', 'Backspace');
@@ -35,13 +49,14 @@ export const deleteTextInput = async (inputElement) => {
     }
 };
 
-const typeOnInput = (input,text) => {
+export const simulateTyping = (input,text) => {
     const dataTransfer = new DataTransfer();
     dataTransfer.setData('text', text);
     const event = new ClipboardEvent('paste', {
         clipboardData: dataTransfer,
         bubbles: true
     });
+    input.click()
     setTimeout(() => {
         input.dispatchEvent(event)
     }, 1000)
@@ -212,20 +227,7 @@ function clearModalFromDOM(containerClassName) {
     document.getElementsByClassName('modal-backdrop')[0].remove()
 }
 
-export function simulateTyping(inputElement, text) {
-    let index = 0;
-    function typeNextChar() {
-        if (index < text.length) {
-            const char = text.charAt(index);
-            const keyCode = char.charCodeAt(0);
-            const event = new KeyboardEvent('keydown', {keyCode});
-            inputElement.dispatchEvent(event);
-            index++;
-            setTimeout(typeNextChar, 100);
-        }
-    }
-    typeNextChar();
-}
+
 
 export function createTable(headers, data) {
     const table = document.createElement('table');
