@@ -54,12 +54,9 @@
   "chooseScheduleTime" : "Choose a time",
   "sendingByPhoneNumber" : "Sending by phone number",
   "enterPhoneNumber" : "Enter phone number",
-  "invalidPhoneNumber" : "Invalid phone number"
-
-
-
-
-
-
+  "invalidPhoneNumber" : "Invalid phone number",
+  "language": "language",
+  "hebrew": "hebrew",
+  "english": "english"
 
 }

@@ -55,5 +55,8 @@
   "chooseScheduleTime" : "בחר זמן",
   "sendingByPhoneNumber": "שליחה לפי מספר טלפון",
   "enterPhoneNumber" : "הכנס מספר טלפון",
-  "invalidPhoneNumber" : "מספר טלפון לא חוקי"
+  "invalidPhoneNumber" : "מספר טלפון לא חוקי",
+  "language": "בחר שפה",
+  "hebrew": "עברית",
+  "english": "אנגלית"
 }

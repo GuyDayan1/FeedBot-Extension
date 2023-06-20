@@ -1,0 +1,17 @@
+.lang-container{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.spec-lang-container {
+    display: flex;
+    flex-direction: row;
+}
+.lang-container[dir="rtl"] .spec-lang-container {
+    flex-direction: row-reverse;
+}
+
+.spec-lang-container .fb-label{
+    margin-inline : 4px;
+}

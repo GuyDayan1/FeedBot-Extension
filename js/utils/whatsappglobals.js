@@ -1,4 +1,5 @@
-export const paneSideElement = "div[id=side]";
+export const sideElement = "div[id=side]";
+export const paneSideElement = "div[id=pane-side]";
 export const conversationHeaderElement = "header[data-testid=conversation-header]";
 export const composeBoxElement = "div[data-testid=compose-box]";
 export const chatListHeaderElement = "header[data-testid=chatlist-header]"

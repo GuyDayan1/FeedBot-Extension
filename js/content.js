@@ -1,5 +1,6 @@
 import * as ChromeUtils from "./utils/chrome-utils";
 import * as GeneralUtils from "./utils/general-utils"
+import {waitForNode} from "./utils/general-utils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
@@ -16,6 +17,7 @@ let feedBotIcon;
 let cellFrame;
 let emptyMessagesAlert;
 let firstLoginDate;
+let messagesListHeight;
 let contacts;
 let clockSvg;
 let WAInputPlaceholder = '';
@@ -103,6 +105,10 @@ async function setClientProperties() {
         ChromeUtils.clearStorage();
         await ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getFullDateAsString())
     }
+    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(res => {
+        messagesListHeight = res.clientHeight;
+    })
+
 }
 
 async function initTranslations() {
@@ -116,7 +122,7 @@ async function initTranslations() {
 
 
 async function initMessagesTimeOut() {
-    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(async () => {
+    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.sideElement).then(async () => {
         if (Object.keys(activeMessagesTimeout.length === 0)) {
             await clearAllItemsTimeOuts();
         }
@@ -147,7 +153,7 @@ async function initMessagesTimeOut() {
 
 
 function DOMListener() {
-    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(r => {
+    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.sideElement).then(r => {
         document.body.addEventListener('click', (e) => {
             if (unSentMessagesIds.length > 0) {
                 ChromeUtils.getSchedulerMessages().then(result => {
@@ -266,25 +272,8 @@ async function addFeedBotFeatures() {
                 }
                 break;
             case translation.settings:
-                let settings = await ChromeUtils.sendChromeMessage({action: Globals.GET_HTML_FILE_ACTION, fileName: 'settings'})
-                const settingsHtml = document.createElement('div');
-                settingsHtml.innerHTML = settings;
-                settingsHtml.getElementsByClassName('fb-header')[0].textContent = translation.language;
-                let drawerPosition = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'top-start' : 'top-end'
-                let fadeInDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeInRight' : 'fadeInLeft'
-                let fadeOutDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeOutRight' : 'fadeOutLeft'
-                feedBotListItem.addEventListener('click', async () => {
-                    await Swal.fire({
-                        title: translation.settings,
-                        html: settingsHtml,
-                        position: drawerPosition,
-                        showClass: {popup: `animate__animated animate__${fadeInDirection} animate__faster`},
-                        hideClass: {popup: `animate__animated animate__${fadeOutDirection} animate__faster`},
-                        grow: 'column',
-                        width: 300,
-                        showConfirmButton: true,
-                        showCloseButton: true
-                    })
+                feedBotListItem.addEventListener("click", () => {
+                    showSettingsModal()
                 })
                 break;
         }
@@ -293,6 +282,41 @@ async function addFeedBotFeatures() {
     }
 }
 
+async function showSettingsModal() {
+    let settings = await ChromeUtils.sendChromeMessage({action: Globals.GET_HTML_FILE_ACTION, fileName: 'settings'})
+    const settingsHtml = document.createElement('div');
+    settingsHtml.innerHTML = settings;
+    settingsHtml.querySelector('.fb-header').innerHTML = translation.language;
+    let specLanguages = settingsHtml.getElementsByClassName('spec-lang-container');
+    for (let element of specLanguages){
+        let inputValue = element.getElementsByTagName('input')[0].value.toString();
+        let label = element.getElementsByTagName('label')[0];
+        switch (inputValue){
+            case Globals.HEBREW_LANGUAGE_PARAM:
+                label.innerHTML = GeneralUtils.capitalizeFirstLetter(translation.hebrew);
+                break;
+            case Globals.ENGLISH_LANGUAGE_PARAM:
+                label.innerHTML = GeneralUtils.capitalizeFirstLetter(translation.english);
+                break;
+        }
+    }
+    let drawerPosition = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'top-start' : 'top-end'
+    let fadeInDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeInRight' : 'fadeInLeft'
+    let fadeOutDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeOutRight' : 'fadeOutLeft'
+    await Swal.fire({
+        title: translation.settings,
+        html: settingsHtml,
+        position: drawerPosition,
+        showClass: {popup: `animate__animated animate__${fadeInDirection} animate__faster`},
+        hideClass: {popup: `animate__animated animate__${fadeOutDirection} animate__faster`},
+        grow: 'column',
+        width: 300,
+        showConfirmButton: true,
+        showCloseButton: true
+    }).then(res => {
+
+    })
+}
 
 function createSvgElement(data) {
     let element = GenericSvgElement.cloneNode(true)
@@ -477,7 +501,7 @@ function enterToChat(phoneNumber) {
 async function showScheduledMessages() {
     let schedulerMessagesExist = document.getElementsByClassName('scheduler-messages-container')[0]
     if (!schedulerMessagesExist) {
-        const paneSideElement = document.querySelector(WhatsAppGlobals.paneSideElement)
+        const paneSideElement = document.querySelector(WhatsAppGlobals.sideElement)
         const schedulerListContainer = document.createElement("div");
         schedulerListContainer.className = "scheduler-messages-container";
         const backToChatList = document.createElement('div')
@@ -498,7 +522,7 @@ async function showScheduledMessages() {
 async function createMessagesList() {
     const messagesList = document.createElement("div");
     messagesList.className = "messages-list";
-    GeneralUtils.addScrollingAbility(messagesList, "432px")
+    GeneralUtils.addScrollingAbility(messagesList, `${messagesListHeight}px`)
     const schedulerMessages = await ChromeUtils.getSchedulerMessages();
     const relevantMessages = schedulerMessages.filter(item => (!item.messageSent) && (!item.deleted))
     if (relevantMessages.length > 0) {
@@ -1076,6 +1100,7 @@ const showSchedulerModal = async (data) => {
     datetimeContainer.style.direction = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "rtl" : "ltr"
     const dateTimeLabel = document.createElement('label');
     dateTimeLabel.className = "fb-label";
+    dateTimeLabel.style.display = "flex"
     dateTimeLabel.textContent = translation.chooseScheduleTime
     const datetimeInput = document.createElement('input');
     datetimeInput.type = "datetime-local";
@@ -1178,6 +1203,7 @@ const showGroupsModal = (result) => {
         checkboxInput.id = item.groupId;
         let checkboxLabel = document.createElement('label')
         checkboxLabel.classList.add('fb-label');
+        checkboxLabel.style.display = "flex"
         checkboxLabel.setAttribute('for', item.groupName)
         checkboxLabel.innerText = item.groupName;
         checkboxLabel.setAttribute("for", item.groupId)
@@ -1247,6 +1273,7 @@ const showContactsModal = () => {
         div.classList.add('contacts-row');
         const label = document.createElement('label');
         label.classList.add('fb-label');
+        label.style.display = "flex"
         const input = document.createElement('input');
         input.classList.add('fb-radio-button');
         input.type = 'radio';
