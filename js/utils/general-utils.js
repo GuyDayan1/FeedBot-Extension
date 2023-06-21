@@ -7,6 +7,31 @@ export async function clearChildesFromParent(parentNode) {
     }
 }
 
+export function sortByProperty(arr, key, sortOrder) {
+    const sortedArray = arr.slice();
+
+    sortedArray.sort((a, b) => {
+        const valueA = a[key];
+        const valueB = b[key];
+
+        if (typeof valueA === "string" && typeof valueB === "string") {
+            // Sort alphabetically if both values are strings
+            if (valueA < valueB) {
+                return sortOrder === "asc" ? -1 : 1;
+            } else if (valueA > valueB) {
+                return sortOrder === "asc" ? 1 : -1;
+            }
+        } else if (typeof valueA === "number" && typeof valueB === "number") {
+            // Sort numerically if both values are numbers
+            return sortOrder === "asc" ? valueA - valueB : valueB - valueA;
+        }
+
+        return 0;
+    });
+
+    return sortedArray;
+}
+
 export const areArrayEqual = (arr1, arr2) => {
     for (let i = 0; i < arr1.length; i++) {
         if (arr1[i] !== arr2[i]) {

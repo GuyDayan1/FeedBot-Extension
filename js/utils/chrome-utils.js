@@ -15,6 +15,9 @@ export function clearStorage() {
 }
 
 
+
+
+
 export function getSchedulerMessages() {
     return new Promise((resolve) => {
         chrome.storage.local.get(["schedulerMessages"], (result) => {
@@ -35,23 +38,6 @@ export function getSchedulerMessages() {
     });
 }
 
-export function getActiveSchedulerMessages(){
-    return new Promise((resolve) => {
-        chrome.storage.local.get(["schedulerMessages"], (result) => {
-            if (chrome.runtime.lastError) {
-                getSchedulerMessages().then(r => {
-                    console.log("there is an error try to get messages again")
-                })
-            } else {
-                const schedulerMessages = result.schedulerMessages || [];
-                const repeatSending = schedulerMessages.filter(item=>{
-                    return item.messageSent === false && item.deleted === false
-                })
-                resolve(activeMessages);
-            }
-        });
-    });
-}
 
 
 export function getFromLocalStorage(key){
@@ -109,12 +95,6 @@ export async function updateItem(updatedItem) {
     });
 }
 
-
-
-export const schedulingTimeAlreadyExist = (schedulerMessages) => {
-    const scheduledTimes = schedulerMessages.map(item=> {return item.scheduledTime})
-    return GeneralUtils.containsDuplicates(scheduledTimes);
-}
 
 export function sendChromeMessage(data) {
     return new Promise((resolve, reject) => {

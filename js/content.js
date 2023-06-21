@@ -12,7 +12,6 @@ let headerElement;
 let connected = false;
 let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
 let defaultUserImage;
-let bulkSendingData;
 let feedBotIcon;
 let cellFrame;
 let emptyMessagesAlert;
@@ -141,9 +140,9 @@ async function initMessagesTimeOut() {
             }
         }
         for (let i = 0; i < relevantMessages.length; i++) {
-            let currentMessage = relevantMessages[i];
-            const elapsedTime = currentMessage.scheduledTime - Date.now();
-            await setTimeOutForMessage(currentMessage.id, currentMessage.chatName, elapsedTime, currentMessage.warnBeforeSending);
+            let currentItem = relevantMessages[i];
+            const elapsedTime = currentItem.scheduledTime - Date.now();
+            await setTimeOutForMessage(currentItem.id, currentItem.chatName, elapsedTime, currentItem.userInteractWarning);
         }
         if (unSentMessages.length > 0) {
             showUnSentMessagesModal(unSentMessages)
@@ -189,13 +188,17 @@ function DOMListener() {
 }
 
 
+
 async function clearAllItemsTimeOuts() {
     for (let id in activeMessagesTimeout) {
-        clearSpecificItem(id)
+        await clearSpecificItem(id)
     }
 }
 
-function clearSpecificItem(id) {
+async function clearSpecificItem(id) {
+    const item = await ChromeUtils.getScheduleMessageById(id)
+    item.deleted = true;
+    await ChromeUtils.updateItem(item)
     clearTimeout(activeMessagesTimeout[id])
     delete activeMessagesTimeout[id]
 }
@@ -585,8 +588,6 @@ async function createMessageFrame(item) {
             confirmButtonText: translation.confirmDelete,
         }).then((result) => {
             if (result.isConfirmed) {
-                item.deleted = true;
-                ChromeUtils.updateItem(item)
                 clearSpecificItem(item.id)
                 refreshScheduledMessagesList()
                 showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully, 'success')
@@ -672,6 +673,7 @@ function clearBulkState() {
 const startBulkSending = async (data) => {
     await updateClientState(Globals.SENDING_STATE, Globals.BULK_SENDING)
     await showBulkState()
+    let bulkSendingData = data.bulkSendingData;
     let index = data.startIndex;
     let extra = data.extra
     const sendNextItem = () => {
@@ -719,7 +721,7 @@ const sendScheduledMessage = async (id) => {
 
         }
     } else {
-        if (!item.deleted) {
+        if (!item.deleted && !item.messageSent) {
             item.repeatSending = true;
             await ChromeUtils.updateItem(item);
             unSentMessagesIds.push(...unSentMessagesIds, item.id)
@@ -807,7 +809,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
             }
             const imageUrl = conversationHeaderElement.childNodes[0].childNodes[0].childNodes[0].src || defaultUserImage
             const elapsedTime = scheduledTime - new Date().getTime();
-            const warnBeforeSending = elapsedTime > Globals.USER_TYPING_WARNING_TIME * Globals.SECOND
+            const userInteractWarning = elapsedTime > Globals.USER_INTERACT_WARNING_TIME * Globals.SECOND
             const data = {
                 id,
                 message,
@@ -819,7 +821,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
                 imageUrl,
                 chatName,
                 dateTimeStr,
-                warnBeforeSending,
+                userInteractWarning,
                 repeatSending: false,
                 messageSent: false,
                 deleted: false,
@@ -827,7 +829,7 @@ async function saveMessage(id, message, scheduledTime, dateTimeStr) {
             const currentSchedulerMessages = await ChromeUtils.getSchedulerMessages();
             const updatedSchedulerMessages = [...currentSchedulerMessages, data];
             await ChromeUtils.updateSchedulerMessages(updatedSchedulerMessages)
-            await setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending);
+            await setTimeOutForMessage(id, chatName, elapsedTime, userInteractWarning);
             resolve(true);
         } catch (error) {
             console.log(error)
@@ -868,19 +870,70 @@ async function checkForUserTyping(seconds) {
     }
 }
 
+async function checkForUserInteraction(seconds) {
+    let userIsInteracting = false;
+    let initialTexts = await getAllTexts().then((result) => result.sort());
+    return new Promise((resolve) => {
+        const interactionCheckingInterval = setInterval(() => {
+            seconds--;
+            if (seconds <= 0 || userIsInteracting) {
+                clearInterval(interactionCheckingInterval);
+                removeClickListener();
+                resolve(userIsInteracting);
+            } else {
+                getAllTexts().then((currentTexts) => {
+                    let areTextsEqual = GeneralUtils.areArrayEqual(
+                        currentTexts.sort(),
+                        initialTexts
+                    );
+                    if (!areTextsEqual) {
+                        userIsInteracting = true;
+                    }
+                });
+            }
+        }, Globals.SECOND);
 
-function setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending) {
-    if (warnBeforeSending) {
+        const clickListener = () => {
+            userIsInteracting = true;
+        };
+
+        const removeClickListener = () => {
+            document.removeEventListener("click", clickListener);
+        };
+
+        // Listen for click events on the WhatsApp Web page
+        document.addEventListener("click", clickListener);
+    });
+
+    function getAllTexts() {
+        return new Promise((resolve) => {
+            const texts = [];
+            const inputs = document.querySelectorAll('[class*="text-input"]');
+            inputs.forEach((input) => {
+                texts.push(input.textContent);
+            });
+            resolve(texts);
+        });
+    }
+}
+
+
+
+
+function setTimeOutForMessage(id, chatName, elapsedTime, userInteractWarning) {
+    if (userInteractWarning) {
         activeMessagesTimeout[id] = setTimeout(async () => {
-            let userIsTyping = await checkForUserTyping(Globals.USER_TYPING_WARNING_TIME)
-            if (userIsTyping) {
-                showUserTypingAlert(Globals.USER_TYPING_WARNING_TIME * Globals.SECOND, chatName)
-                await GeneralUtils.sleep(Globals.USER_TYPING_WARNING_TIME)
+            let isUserInteract = await checkForUserInteraction(Globals.USER_INTERACT_WARNING_TIME)
+            if (isUserInteract) {
+                let title = `${translation.scheduledMessageTo} ${chatName}`
+                let html = `${translation.messageWillBeSent} <b></b> ${translation.seconds}`
+                showAlertWithTimeOut(Globals.USER_INTERACT_WARNING_TIME * Globals.SECOND, title, html)
+                await GeneralUtils.sleep(Globals.USER_INTERACT_WARNING_TIME)
             }
             sendScheduledMessage(id).then(res => {
                 delete activeMessagesTimeout[id]
             })
-        }, elapsedTime - (Globals.USER_TYPING_WARNING_TIME * Globals.SECOND))
+        }, elapsedTime - (Globals.USER_INTERACT_WARNING_TIME * Globals.SECOND))
     } else {
         activeMessagesTimeout[id] = setTimeout(() => {
             sendScheduledMessage(id).then(res => {
@@ -892,11 +945,11 @@ function setTimeOutForMessage(id, chatName, elapsedTime, warnBeforeSending) {
 }
 
 
-function showUserTypingAlert(timer, contactName) {
+function showAlertWithTimeOut(timer, title , html) {
     let timerInterval
     Swal.fire({
-        title: ` ${translation.scheduledMessageTo} ${contactName}`,
-        html: `${translation.messageWillBeSent} <b></b> ${translation.seconds}`,
+        title: title,
+        html: html ,
         timer: timer,
         timerProgressBar: false,
         didOpen: () => {
@@ -992,7 +1045,7 @@ const showBulkSendingModal = async () => {
             confirmButtonText: translation.approve,
         }).then((result) => {
             if (result.isConfirmed) {
-                bulkSendingData = excelData.map((item, index) => {
+                let bulkSendingData = excelData.map((item, index) => {
                     return {
                         id: index,
                         media: item.colA,
@@ -1003,7 +1056,7 @@ const showBulkSendingModal = async () => {
                     }
                 })
                 let extra = {pauseBetweenMessages: Globals.SECOND * 10}
-                startBulkSending({dataSource: Globals.EXCEL_PARAM, extra, startIndex: 0})
+                startBulkSending({bulkSendingData:bulkSendingData ,dataSource: Globals.EXCEL_PARAM, extra, startIndex: 0})
             }
         });
         let body = document.getElementsByClassName('bulk-sending-modal-container')[0];

@@ -2,7 +2,7 @@ export const HEBREW_LANGUAGE_PARAM = 'he'
 export const ENGLISH_LANGUAGE_PARAM = 'en'
 export const LEFT_ARROW_SVG_PATH_VALUE = "M24 14L4 14M10 8L4 14L10 20";
 export const RIGHT_ARROW_SVG_PATH_VALUE = "M4 14L24 14M18 20L24 14L18 8";
-export const USER_TYPING_WARNING_TIME = 5;
+export const USER_INTERACT_WARNING_TIME = 5;
 export const SECOND = 1000;
 export const MINUTE = SECOND * 60
 
