@@ -52,11 +52,11 @@
   "invalidPhoneNotice": "טלפון לא תקין",
   "messageMustContainsText" : "ההודעה חייבת להכיל טקסט",
   "invalidDateNotice" : "התאריך לא חוקי",
-  "chooseScheduleTime" : "בחר זמן",
+  "chooseScheduleTime" : "בחר זמן לתזמון",
   "sendingByPhoneNumber": "שליחה לפי מספר טלפון",
   "enterPhoneNumber" : "הכנס מספר טלפון",
   "invalidPhoneNumber" : "מספר טלפון לא חוקי",
   "language": "בחר שפה",
   "hebrew": "עברית",
-  "english": "אנגלית",
+  "english": "אנגלית"
 }

@@ -66,8 +66,14 @@ const headerElementObserver = new MutationObserver(async () => {
             clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
             defaultUserImage = chrome.runtime.getURL("images/default-user.png");
             WAInputPlaceholder = translation.typeMessage
-            feedBotListOptions.push(translation.scheduledMessages, translation.sendingByPhoneNumber, translation.bulkSending, translation.exportToExcel, translation.settings)
-            excelFeaturesListOptions.push(translation.contacts, translation.participantsFromAllGroups, translation.participantsFromSelectedGroups)
+            feedBotListOptions.push({id:1,type : Globals.SCHEDULED_MESSAGES_PARAM , text:translation.scheduledMessages , hasSubList:false} ,
+                {id:2 , type:Globals.SENDING_BY_PHONE_PARAM , text:translation.sendingByPhoneNumber , hasSubList:false},
+                {id:3 , type:Globals.BULK_SENDING_PARAM , text:translation.bulkSending , hasSubList:false},
+                {id:4 , type:Globals.EXPORT_TO_EXCEL_PARAM , text:translation.exportToExcel , hasSubList:true},
+                {id:4 , type:Globals.SETTINGS_PARAM , text:translation.settings , hasSubList:false});
+            excelFeaturesListOptions.push({id:1 , type : Globals.CONTACTS_PARAM , text:translation.contacts},
+                {id:2 , type : Globals.PARTICIPANTS_FROM_ALL_GROUPS_PARAM , text:translation.participantsFromAllGroups},
+                {id:3 , type : Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_PARAM , text:translation.participantsFromSelectedGroups})
         })
         //ChromeUtils.clearStorage()
     }
@@ -216,29 +222,24 @@ async function addFeedBotFeatures() {
     feedBotListFeatures.className = "fb-features-dropdown";
     feedBotListFeatures.style.marginLeft = client.language === Globals.HEBREW_LANGUAGE_PARAM ? '3rem' : 'auto'
     for (let i = 0; i < feedBotListOptions.length; i++) {
+        let feedBotOption = feedBotListOptions[i];
         const feedBotListItem = document.createElement("li");
         feedBotListItem.className = "fb-list-item"
         const textSpan = document.createElement("span");
-        textSpan.textContent = feedBotListOptions[i];
+        textSpan.textContent = feedBotOption.text;
         feedBotListItem.appendChild(textSpan)
         feedBotListFeatures.appendChild(feedBotListItem);
-        switch (feedBotListOptions[i]) {
-            case translation.scheduledMessages:
-                feedBotListItem.addEventListener("click", () => {
-                    showScheduledMessages()
-                })
+        switch (feedBotOption.type) {
+            case Globals.SCHEDULED_MESSAGES_PARAM:
+                feedBotListItem.addEventListener("click", () => {showScheduledMessages()})
                 break;
-            case GeneralUtils.convertToTitle(translation.sendingByPhoneNumber):
-                feedBotListItem.addEventListener('click', () => {
-                    showSendByPhoneNumberModal()
-                })
+            case Globals.SENDING_BY_PHONE_PARAM:
+                feedBotListItem.addEventListener('click', () => {showSendByPhoneNumberModal()})
                 break;
-            case translation.bulkSending:
-                feedBotListItem.addEventListener('click', () => {
-                    showBulkSendingModal()
-                })
+            case Globals.BULK_SENDING_PARAM:
+                feedBotListItem.addEventListener('click', () => {showBulkSendingModal()})
                 break;
-            case translation.exportToExcel:
+            case Globals.EXPORT_TO_EXCEL_PARAM:
                 const excelSubListFeatures = document.createElement("ul");
                 excelSubListFeatures.className = "fb-excel-features-dropdown";
                 excelSubListFeatures.style[client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'right' : 'left'] = '100%';
@@ -255,33 +256,32 @@ async function addFeedBotFeatures() {
                 feedBotListItem.childNodes[0].appendChild(arrowElement)
                 feedBotListItem.appendChild(excelSubListFeatures)
                 for (let i = 0; i < excelFeaturesListOptions.length; i++) {
+                    let excelOption = excelFeaturesListOptions[i];
                     const excelListItem = document.createElement("li");
                     excelListItem.className = "fb-list-item";
                     const textSpan = document.createElement("span");
-                    textSpan.textContent = excelFeaturesListOptions[i];
+                    textSpan.textContent = excelOption.text;
                     excelListItem.appendChild(textSpan)
                     excelSubListFeatures.appendChild(excelListItem);
-                    switch (excelFeaturesListOptions[i]) {
-                        case translation.participantsFromAllGroups:
+                    switch (excelOption.type) {
+                        case Globals.PARTICIPANTS_FROM_ALL_GROUPS_PARAM:
                             excelListItem.addEventListener("click", exportAllGroupsParticipantsToExcel)
                             break;
-                        case translation.participantsFromSelectedGroups:
+                        case Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_PARAM:
                             excelListItem.addEventListener("click", getSelectedGroupsParticipants)
                             break;
-                        case translation.contacts:
+                        case Globals.CONTACTS_PARAM:
                             excelListItem.addEventListener("click", showContactsModal)
                             break;
                     }
                 }
                 break;
-            case translation.settings:
-                feedBotListItem.addEventListener("click", () => {
-                    showSettingsModal()
-                })
+            case Globals.SETTINGS_PARAM:
+                feedBotListItem.addEventListener("click", () => {showSettingsModal()})
                 break;
         }
         feedBotIcon.appendChild(feedBotListFeatures);
-        GeneralUtils.listFadeIn(feedBotListFeatures, 300)
+        GeneralUtils.listFadeIn(feedBotListFeatures, 400)
     }
 }
 
@@ -1066,6 +1066,7 @@ const showBulkSendingModal = async () => {
             confirmButton.disabled = !(state.csvFile && state.message.length > 0);
         };
         const messageTextArea = document.getElementById('message')
+        messageTextArea.placeholder = translation.typeMessage;
         messageTextArea.addEventListener('input', () => {
             state.message = messageTextArea.value
             updateConfirmButton()

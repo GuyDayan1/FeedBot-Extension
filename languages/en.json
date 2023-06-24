@@ -51,12 +51,11 @@
   "invalidPhoneNotice": "Invalid phone number",
   "messageMustContainsText": "The message must contain text",
   "invalidDateNotice": "Invalid date",
-  "chooseScheduleTime" : "Choose a time",
+  "chooseScheduleTime" : "choose a time to scheduled",
   "sendingByPhoneNumber" : "Sending by phone number",
   "enterPhoneNumber" : "Enter phone number",
   "invalidPhoneNumber" : "Invalid phone number",
   "language": "language",
   "hebrew": "hebrew",
   "english": "english"
-
 }
