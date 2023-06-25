@@ -66,14 +66,14 @@ const headerElementObserver = new MutationObserver(async () => {
             clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
             defaultUserImage = chrome.runtime.getURL("images/default-user.png");
             WAInputPlaceholder = translation.typeMessage
-            feedBotListOptions.push({id:1,type : Globals.SCHEDULED_MESSAGES_PARAM , text:translation.scheduledMessages , hasSubList:false} ,
-                {id:2 , type:Globals.SENDING_BY_PHONE_PARAM , text:translation.sendingByPhoneNumber , hasSubList:false},
-                {id:3 , type:Globals.BULK_SENDING_PARAM , text:translation.bulkSending , hasSubList:false},
-                {id:4 , type:Globals.EXPORT_TO_EXCEL_PARAM , text:translation.exportToExcel , hasSubList:true},
-                {id:4 , type:Globals.SETTINGS_PARAM , text:translation.settings , hasSubList:false});
-            excelFeaturesListOptions.push({id:1 , type : Globals.CONTACTS_PARAM , text:translation.contacts},
-                {id:2 , type : Globals.PARTICIPANTS_FROM_ALL_GROUPS_PARAM , text:translation.participantsFromAllGroups},
-                {id:3 , type : Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_PARAM , text:translation.participantsFromSelectedGroups})
+            feedBotListOptions.push({id:1,type : Globals.SCHEDULED_MESSAGES_TYPE , text:translation.scheduledMessages , hasSubList:false} ,
+                {id:2 , type:Globals.SENDING_BY_PHONE_TYPE , text:translation.sendingByPhoneNumber , hasSubList:false},
+                {id:3 , type:Globals.BULK_SENDING_TYPE , text:translation.bulkSending , hasSubList:false},
+                {id:4 , type:Globals.EXPORT_TO_EXCEL_TYPE , text:translation.exportToExcel , hasSubList:true},
+                {id:4 , type:Globals.SETTINGS_TYPE , text:translation.settings , hasSubList:false});
+            excelFeaturesListOptions.push({id:1 , type : Globals.CONTACTS_TYPE , text:translation.contacts},
+                {id:2 , type : Globals.PARTICIPANTS_FROM_ALL_GROUPS_TYPE , text:translation.participantsFromAllGroups},
+                {id:3 , type : Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE , text:translation.participantsFromSelectedGroups})
         })
         //ChromeUtils.clearStorage()
     }
@@ -230,16 +230,16 @@ async function addFeedBotFeatures() {
         feedBotListItem.appendChild(textSpan)
         feedBotListFeatures.appendChild(feedBotListItem);
         switch (feedBotOption.type) {
-            case Globals.SCHEDULED_MESSAGES_PARAM:
+            case Globals.SCHEDULED_MESSAGES_TYPE:
                 feedBotListItem.addEventListener("click", () => {showScheduledMessages()})
                 break;
-            case Globals.SENDING_BY_PHONE_PARAM:
+            case Globals.SENDING_BY_PHONE_TYPE:
                 feedBotListItem.addEventListener('click', () => {showSendByPhoneNumberModal()})
                 break;
-            case Globals.BULK_SENDING_PARAM:
+            case Globals.BULK_SENDING_TYPE:
                 feedBotListItem.addEventListener('click', () => {showBulkSendingModal()})
                 break;
-            case Globals.EXPORT_TO_EXCEL_PARAM:
+            case Globals.EXPORT_TO_EXCEL_TYPE:
                 const excelSubListFeatures = document.createElement("ul");
                 excelSubListFeatures.className = "fb-excel-features-dropdown";
                 excelSubListFeatures.style[client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'right' : 'left'] = '100%';
@@ -264,19 +264,19 @@ async function addFeedBotFeatures() {
                     excelListItem.appendChild(textSpan)
                     excelSubListFeatures.appendChild(excelListItem);
                     switch (excelOption.type) {
-                        case Globals.PARTICIPANTS_FROM_ALL_GROUPS_PARAM:
+                        case Globals.PARTICIPANTS_FROM_ALL_GROUPS_TYPE:
                             excelListItem.addEventListener("click", exportAllGroupsParticipantsToExcel)
                             break;
-                        case Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_PARAM:
+                        case Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE:
                             excelListItem.addEventListener("click", getSelectedGroupsParticipants)
                             break;
-                        case Globals.CONTACTS_PARAM:
+                        case Globals.CONTACTS_TYPE:
                             excelListItem.addEventListener("click", showContactsModal)
                             break;
                     }
                 }
                 break;
-            case Globals.SETTINGS_PARAM:
+            case Globals.SETTINGS_TYPE:
                 feedBotListItem.addEventListener("click", () => {showSettingsModal()})
                 break;
         }

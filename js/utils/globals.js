@@ -29,14 +29,15 @@ export const CONTACT_PARAM = "contact"
 export const SAVED_PARAM = "saved";
 export const UN_SAVED_PARAM = "un-saved";
 export const ALL_PARAM = "all";
-export const SCHEDULED_MESSAGES_PARAM = "scheduled-messages"
-export const SENDING_BY_PHONE_PARAM = "sending-by-phone"
-export const BULK_SENDING_PARAM = "bulk-sending"
-export const EXPORT_TO_EXCEL_PARAM = "export-to-excel"
-export const SETTINGS_PARAM = "settings"
-export const CONTACTS_PARAM = "contacts"
-export const PARTICIPANTS_FROM_ALL_GROUPS_PARAM = "participants-from-all-groups"
-export const PARTICIPANTS_FROM_SELECTED_GROUPS_PARAM = "participants-from-selected-groups"
+// feedbot options types
+export const SCHEDULED_MESSAGES_TYPE = "scheduled-messages-type"
+export const SENDING_BY_PHONE_TYPE = "sending-by-phone-type"
+export const BULK_SENDING_TYPE = "bulk-sending-type"
+export const EXPORT_TO_EXCEL_TYPE = "export-to-excel-type"
+export const SETTINGS_TYPE = "settings-type"
+export const CONTACTS_TYPE = "contacts-type"
+export const PARTICIPANTS_FROM_ALL_GROUPS_TYPE = "participants-from-all-groups-type"
+export const PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE = "participants-from-selected-groups-type"
 
 export const NO_VALUE_PARAM = "no-value"
 export const ISRAEL_PARAM = 'israel';
