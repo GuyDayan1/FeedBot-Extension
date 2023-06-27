@@ -1,17 +1,21 @@
-<!-- popup.html -->
 <!DOCTYPE html>
 <html lang="he">
 <head>
     <title>FeedBot Extension</title>
-    <script  type="module" src="../js/popup.js"></script>
+    <script type="module" src="../dist/popup.js"></script>
     <link rel="stylesheet" href="../css/popup.css">
 </head>
 <body>
 <div class="container">
     <div>
-        <div class="title">Your </div>
-        <div class="bookmarks" id="bookmarks"></div>
+        <div class="title">FeedBot</div>
     </div>
+    <div class="tabs">
+        <button class="tab-btn" data-tab="settingsTab">Settings</button>
+        <button class="tab-btn" data-tab="guidesTab">Guide</button>
+        <button class="tab-btn" data-tab="statisticsTab">Statistics</button>
+    </div>
+    <div id="active-tab-body"></div>
 </div>
 </body>
 </html>
