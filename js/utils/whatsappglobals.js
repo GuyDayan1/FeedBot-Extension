@@ -6,5 +6,6 @@ export const chatListHeaderElement = "header[data-testid=chatlist-header]"
 export const cellFrameElement = "div[data-testid=cell-frame-container]";
 export const conversationBodyElement = "div[data-testid=conversation-panel-body]";
 export const menuElement = 'span[data-testid="menu"]';
-
+export const sendElement = 'span[data-testid="send"]';
+export const conversationComposeBox = '[data-testid="conversation-compose-box-input"]';
 export const WA_LANGUAGE_PARAM = "WALangPref";

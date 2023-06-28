@@ -74,20 +74,30 @@ export const deleteTextInput = async (inputElement) => {
     }
 };
 
+
 export const simulateTyping = (input,text) => {
-    const dataTransfer = new DataTransfer();
-    dataTransfer.setData('text', text);
-    const event = new ClipboardEvent('paste', {
-        clipboardData: dataTransfer,
-        bubbles: true
-    });
-    input.click()
-    setTimeout(() => {
-        input.dispatchEvent(event)
-    }, 1000)
+    return new Promise((resolve, reject) => {
+        const dataTransfer = new DataTransfer();
+        dataTransfer.setData('text', text);
+        const event = new ClipboardEvent('paste', {
+            clipboardData: dataTransfer,
+            bubbles: true
+        });
+        input.click()
+        setTimeout(() => {
+            input.dispatchEvent(event)
+            resolve(true)
+        }, 500)
+    })
+
+};
+
+
+export function removeSpaces(word) {
+    let newWord = word.replace(/\s/g, "");
+    console.log(newWord)
+    return newWord
 }
-
-
 export function listFadeIn(element, duration) {
     let start = performance.now();
     element.style.opacity = "0";
@@ -332,6 +342,28 @@ export function waitForNodeWithTimeOut(parentNode, selector, timeout) {
                 resolve(element);
             }
         }, 10);
+    });
+}
+
+
+export function waitForElementTextContent(parentElement, targetElementSelector) {
+    return new Promise((resolve, reject) => {
+        const observer = new MutationObserver((mutationsList) => {
+            for (const mutation of mutationsList) {
+                const targetElement = mutation.target.querySelector(targetElementSelector);
+                if (targetElement && targetElement.textContent.trim() !== "") {
+                    observer.disconnect();
+                    resolve(targetElement);
+                    return;
+                }
+            }
+        });
+
+        observer.observe(parentElement, { childList: true, subtree: true });
+        setTimeout(() => {
+            observer.disconnect();
+            reject("Timeout: Element with non-empty content not found.");
+        }, 5000); // Adjust the timeout value as needed
     });
 }
 export function addSelectOptions(selector, selectorName) {

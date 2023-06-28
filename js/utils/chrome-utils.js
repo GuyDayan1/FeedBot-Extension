@@ -77,7 +77,7 @@ export function updateSchedulerMessages(updatedSchedulerMessages) {
     })
 }
 
-export async function getScheduleMessageById(id) {
+export async function getScheduledMessageById(id) {
     const data = await getSchedulerMessages();
     return data.find(item => item.id === id);
 }
