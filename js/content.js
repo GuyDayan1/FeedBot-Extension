@@ -1,12 +1,10 @@
 import * as ChromeUtils from "./utils/chrome-utils";
 import * as GeneralUtils from "./utils/general-utils"
-import {deleteTextInput, simulateKeyPress, waitForNode} from "./utils/general-utils"
 import * as Globals from "./utils/globals"
 import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import * as Errors from "./utils/errors"
 import Swal from "sweetalert2";
-import {TEXT_NOT_MATCH} from "./utils/errors";
 
 
 let headerElement;
@@ -67,23 +65,16 @@ const headerElementObserver = new MutationObserver(async () => {
             clockSvg = chrome.runtime.getURL('icons/clock-icon.svg');
             defaultUserImage = chrome.runtime.getURL("images/default-user.png");
             WAInputPlaceholder = translation.typeMessage
-            feedBotListOptions.push({
-                    id: 1,
-                    type: Globals.SCHEDULED_MESSAGES_TYPE,
-                    text: translation.scheduledMessages,
-                    hasSubList: false
-                },
+            feedBotListOptions.push(
+                {id: 1, type: Globals.SCHEDULED_MESSAGES_TYPE, text: translation.scheduledMessages, hasSubList: false},
                 {id: 2, type: Globals.SENDING_BY_PHONE_TYPE, text: translation.sendingByPhoneNumber, hasSubList: false},
                 {id: 3, type: Globals.BULK_SENDING_TYPE, text: translation.bulkSending, hasSubList: false},
                 {id: 4, type: Globals.EXPORT_TO_EXCEL_TYPE, text: translation.exportToExcel, hasSubList: true},
                 {id: 4, type: Globals.SETTINGS_TYPE, text: translation.settings, hasSubList: false});
-            excelFeaturesListOptions.push({id: 1, type: Globals.CONTACTS_TYPE, text: translation.contacts},
+            excelFeaturesListOptions.push(
+                {id: 1, type: Globals.CONTACTS_TYPE, text: translation.contacts},
                 {id: 2, type: Globals.PARTICIPANTS_FROM_ALL_GROUPS_TYPE, text: translation.participantsFromAllGroups},
-                {
-                    id: 3,
-                    type: Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE,
-                    text: translation.participantsFromSelectedGroups
-                })
+                {id: 3, type: Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE, text: translation.participantsFromSelectedGroups})
         })
         //ChromeUtils.clearStorage()
     }
@@ -117,10 +108,9 @@ function updateClientState(state, sendingType) {
 async function setClientProperties() {
     firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
     if (!firstLoginDate) {
-        ChromeUtils.clearStorage();
         await ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getFullDateAsString())
     }
-    waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(res => {
+    GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(res => {
         messagesListHeight = res.clientHeight;
     })
 
@@ -325,7 +315,7 @@ async function showSettingsModal() {
                 break;
         }
     }
-    let drawerPosition = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'top-start' : 'top-end'
+    let drawerPosition = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'top-end':'top-start'
     let fadeInDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeInRight' : 'fadeInLeft'
     let fadeOutDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeOutRight' : 'fadeOutLeft'
     await Swal.fire({
@@ -337,7 +327,13 @@ async function showSettingsModal() {
         grow: 'column',
         width: 300,
         showConfirmButton: true,
-        showCloseButton: true
+        showCancelButton: true,
+        showCloseButton: true,
+        reverseButtons: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonText: translation.approve,
     }).then(res => {
 
     })
@@ -759,7 +755,7 @@ const sendScheduledMessage = async (id) => {
 
 function executeContactSending(item) {
     let error = null, success = false;
-    let waitForChatTries = 0, waitForTextTries = 0;
+    let waitForChatTries = 0;
     return new Promise(async (resolve, reject) => {
         await enterToChat(item.media);
         const waitForChatInterval = setInterval(async () => {
@@ -789,12 +785,12 @@ function executeContactSending(item) {
                                         reject({ success, error });
                                     }
                                 }).catch(reason => {
-                                    console.log(reason, "ff");
+                                    console.log(reason);
                                 });
                             }
                         }, 50);
                     }).catch(reason => {
-                        console.log(reason, "failed to find compose box");
+                        console.log(reason);
                     });
                 }
             }

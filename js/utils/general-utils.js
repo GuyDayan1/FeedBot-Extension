@@ -94,9 +94,7 @@ export const simulateTyping = (input,text) => {
 
 
 export function removeSpaces(word) {
-    let newWord = word.replace(/\s/g, "");
-    console.log(newWord)
-    return newWord
+    return word.replace(/\s/g, "");
 }
 export function listFadeIn(element, duration) {
     let start = performance.now();
