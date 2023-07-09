@@ -86,12 +86,13 @@ export async function updateItem(updatedItem) {
     let currentMessages = await getSchedulerMessages();
     currentMessages = currentMessages.map(currentItem => {
         if (currentItem.id === updatedItem.id) {
+            console.log("found item")
             return updatedItem;
         }
         return currentItem;
     });
     return updateSchedulerMessages(currentMessages).then((updatedSchedulerMessages) => {
-        console.log(updatedSchedulerMessages)
+        console.log("after update" , updatedSchedulerMessages)
     });
 }
 

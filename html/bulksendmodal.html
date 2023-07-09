@@ -2,13 +2,12 @@
     <label for="message"></label>
     <textarea id="message" class="fb-textarea" placeholder="Enter your message content"></textarea>
     <div class="format">
-        <label>
-            <select name="phone-format" id="phone-format"></select>
-        </label>
+        <label class="format-label"></label>
+        <select name="phone-format" id="phone-format"></select>
     </div>
-    <div>
-        <button id="delete-file-button" class="fb-custom-cancel-button" style="display: none;"></button>
-        <label for="excel-file"></label>
-        <input type="file" id="excel-file" name="excel-file" accept=".xlsx,.csv">
+    <div class="upload-container">
+        <label for="excel-file" class="upload-label"><span class="upload-text"></span></label>
+        <input type="file" id="excel-file" name="excel-file" accept=".csv" class="upload-input">
     </div>
+
 </div>

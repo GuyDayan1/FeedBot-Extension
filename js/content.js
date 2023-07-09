@@ -5,6 +5,7 @@ import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import * as Errors from "./utils/errors"
 import Swal from "sweetalert2";
+import {FILE_TYPE_INVALID} from "./utils/errors";
 
 
 let headerElement;
@@ -74,7 +75,11 @@ const headerElementObserver = new MutationObserver(async () => {
             excelFeaturesListOptions.push(
                 {id: 1, type: Globals.CONTACTS_TYPE, text: translation.contacts},
                 {id: 2, type: Globals.PARTICIPANTS_FROM_ALL_GROUPS_TYPE, text: translation.participantsFromAllGroups},
-                {id: 3, type: Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE, text: translation.participantsFromSelectedGroups})
+                {
+                    id: 3,
+                    type: Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE,
+                    text: translation.participantsFromSelectedGroups
+                })
         })
         //ChromeUtils.clearStorage()
     }
@@ -128,7 +133,7 @@ async function initTranslations() {
 
 async function initMessagesTimeOut() {
     GeneralUtils.waitForNode(document.body, WhatsAppGlobals.sideElement).then(async () => {
-        if (Object.keys(activeMessagesTimeout.length === 0)) {
+        if (Object.keys(activeMessagesTimeout.length !== 0)) {
             await clearAllItemsTimeOuts();
         }
         let schedulerMessages = await ChromeUtils.getSchedulerMessages();
@@ -202,9 +207,6 @@ async function clearAllItemsTimeOuts() {
 
 async function clearSpecificItem(id) {
     try {
-        const item = await ChromeUtils.getScheduledMessageById(id)
-        item.deleted = true;
-        await ChromeUtils.updateItem(item)
         clearTimeout(activeMessagesTimeout[id])
         delete activeMessagesTimeout[id]
     } catch (e) {
@@ -315,7 +317,7 @@ async function showSettingsModal() {
                 break;
         }
     }
-    let drawerPosition = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'top-end':'top-start'
+    let drawerPosition = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'top-end' : 'top-start'
     let fadeInDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeInRight' : 'fadeInLeft'
     let fadeOutDirection = client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'fadeOutRight' : 'fadeOutLeft'
     await Swal.fire({
@@ -325,7 +327,7 @@ async function showSettingsModal() {
         showClass: {popup: `animate__animated animate__${fadeInDirection} animate__faster`},
         hideClass: {popup: `animate__animated animate__${fadeOutDirection} animate__faster`},
         grow: 'column',
-        width: 300,
+        width: 450,
         showConfirmButton: true,
         showCancelButton: true,
         showCloseButton: true,
@@ -611,9 +613,12 @@ async function createMessageFrame(item) {
             cancelButtonColor: '#d33',
             cancelButtonText: translation.confirmCancel,
             confirmButtonText: translation.confirmDelete,
-        }).then((result) => {
+        }).then(async (result) => {
             if (result.isConfirmed) {
-                clearSpecificItem(item.id)
+                clearSpecificItem(item.id).then(async r => {
+                    item.deleted = true;
+                    await ChromeUtils.updateItem(item)
+                })
                 refreshScheduledMessagesList()
                 showToastMessage('bottom-end', 5 * Globals.SECOND, true, translation.messageDeletedSuccessfully, 'success')
             }
@@ -726,32 +731,58 @@ const sendScheduledMessage = async (id) => {
         if (client.state === Globals.SENDING_STATE) {
             const sendingInterval = setInterval(() => {
                 if (client.state === Globals.UNUSED_STATE) {
-                    clearInterval(sendingInterval)
-                    sendScheduledMessage(id)
+                    clearInterval(sendingInterval);
+                    sendScheduledMessage(id);
                 }
-            }, 100)
+            }, 100);
         } else {
-            await updateClientState(Globals.SENDING_STATE, Globals.SCHEDULED_SENDING)
+            await updateClientState(Globals.SENDING_STATE, Globals.SCHEDULED_SENDING);
             if (item.chatType === Globals.CONTACT_PARAM) {
-                executeContactSending(item).then(async res => {
-                    await updateClientState(Globals.UNUSED_STATE, '')
-                    if (res.success) {
-                        item.messageSent = true;
-                        await ChromeUtils.updateItem(item);
-                        refreshScheduledMessagesList()
-                    }
-                })
+                executeContactSending(item)
+                    .then(async res => {
+                        if (res.success) {
+                            item.messageSent = true;
+                            await ChromeUtils.updateItem(item);
+                            await updateClientState(Globals.UNUSED_STATE, ''); // Update client state on success
+                        } else {
+                            let error = res.error;
+                            let messageToUser = getErrorMessage(error) + " " + translation.wantToSendEvenThough;
+                            showApproveModal(messageToUser,true)
+                                .then(async (modalResult) => {
+                                    if (modalResult) {
+                                        GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.sendElement, Globals.SECOND * 5).then(async sendElement => {
+                                            sendElement.click()
+                                            item.messageSent = true;
+                                            await ChromeUtils.updateItem(item);
+                                        })
+                                    } else {
+                                        item.deleted = true;
+                                        await ChromeUtils.updateItem(item);
+                                    }
+                                    await updateClientState(Globals.UNUSED_STATE, ''); // Update client state after modal actions
+                                })
+                                .catch(reason => {
+                                    console.log(reason);
+                                    updateClientState(Globals.UNUSED_STATE, ''); // Update client state on error
+                                });
+                        }
+                        refreshScheduledMessagesList();
+                    })
+                    .catch(reason => {
+                        console.log(reason);
+                        updateClientState(Globals.UNUSED_STATE, ''); // Update client state on error
+                    });
             }
-
         }
     } else {
         if (!item.deleted && !item.messageSent) {
             item.repeatSending = true;
             await ChromeUtils.updateItem(item);
-            unSentMessagesIds.push(...unSentMessagesIds, item.id)
+            unSentMessagesIds.push(...unSentMessagesIds, item.id);
         }
     }
-}
+};
+
 
 function executeContactSending(item) {
     let error = null, success = false;
@@ -763,29 +794,29 @@ function executeContactSending(item) {
                 const popup = document.querySelector('div[data-testid="confirm-popup"]');
                 error = popup ? Errors.INVALID_PHONE : Errors.GENERAL_ERROR;
                 clearInterval(waitForChatInterval);
-                resolve({ success, error });
+                resolve({success, error});
             } else {
                 const chatDetails = await GeneralUtils.getChatDetails();
                 if (chatDetails.chatId === item.chatId || chatDetails.chatId.includes(item.chatId)) {
                     clearInterval(waitForChatInterval);
                     GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationComposeBox, Globals.SECOND * 5).then(async conversationBoxElement => {
-                        await GeneralUtils.simulateTyping(conversationBoxElement, item.message);
+                        GeneralUtils.pasteText(conversationBoxElement, item.message);
                         let chatInputText = conversationBoxElement.textContent;
                         const waitForText = setInterval(() => {
                             chatInputText = conversationBoxElement.textContent;
-                            if (chatInputText !== undefined) {
+                            if (isNotEmpty(chatInputText)) {
                                 clearInterval(waitForText);
                                 GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.sendElement, Globals.SECOND * 5).then(sendElement => {
                                     if (GeneralUtils.removeSpaces(chatInputText.toString()) === GeneralUtils.removeSpaces(item.message.toString())) {
                                         sendElement.click();
                                         success = true;
-                                        resolve({ success, error });
+                                        resolve({success, error});
                                     } else {
                                         error = Errors.TEXT_NOT_MATCH;
-                                        reject({ success, error });
+                                        resolve({success, error});
                                     }
                                 }).catch(reason => {
-                                    console.log(reason);
+                                    reject(new Error(reason))
                                 });
                             }
                         }, 50);
@@ -800,10 +831,24 @@ function executeContactSending(item) {
 }
 
 
-
 async function searchingForGroup(media) {
     let side = document.getElementById('pane-side')
     side.scrollTop -= side.scrollTop /// scroll to top
+}
+
+function isNotEmpty(value) {
+    if (typeof value === "undefined" || value === null) {
+        return false;
+    }
+    if (
+        (typeof value === "string" && value.trim() === "") ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === "object" && Object.keys(value).length === 0)
+    ) {
+        return false;
+    }
+
+    return true;
 }
 
 
@@ -964,6 +1009,7 @@ function showAlertWithTimeOut(timer, title, html) {
         title: title,
         html: html,
         timer: timer,
+        allowOutsideClick: false,
         timerProgressBar: false,
         didOpen: () => {
             //Swal.showLoading()
@@ -989,6 +1035,47 @@ const showErrorModal = (message) => {
         text: message,
     }).then()
 }
+
+
+const showApproveModal = async (messageToUser, timer) => {
+    return new Promise(async (resolve) => {
+        let timerInterval;
+        let html = `${translation.messageWillBeSent} <b></b> ${translation.seconds}`;
+        const swalOptions = {
+            title: messageToUser,
+            icon: 'info',
+            html: html,
+            reverseButtons: true,
+            showCancelButton: true,
+            confirmButtonText: translation.confirmSending,
+            cancelButtonText: translation.confirmCancel,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            didOpen: () => {
+                const b = Swal.getHtmlContainer().querySelector('b');
+                if (timer) {
+                    swalOptions.timer = timer;
+                    timerInterval = setInterval(() => {
+                        b.textContent = Math.ceil(Swal.getTimerLeft() / Globals.SECOND).toString();
+                    }, Globals.SECOND);
+                }
+            },
+            willClose: () => {
+                clearInterval(timerInterval);
+            }
+        };
+
+        Swal.fire(swalOptions)
+            .then(async (result) => {
+                if (result.isConfirmed || result.dismiss === Swal.DismissReason.timer) {
+                    resolve(true);
+                } else if (result.isDismissed) {
+                    resolve(false);
+                }
+            });
+    });
+};
+
 
 
 const showUnSentMessagesModal = (unSentMessages) => {
@@ -1037,9 +1124,12 @@ const showUnSentMessagesModal = (unSentMessages) => {
 
 
 const showBulkSendingModal = async () => {
-    let excelData;
-    let excelHeaders;
-    let state = {message: '', csvFile: false}
+    let state = {
+        message: {text: ''},
+        fileType: '',
+        excelData: [],
+        excelHeaders: []
+    }
     try {
         const bulkSendingModalHTML = await ChromeUtils.sendChromeMessage({
             action: Globals.GET_HTML_FILE_ACTION,
@@ -1048,6 +1138,8 @@ const showBulkSendingModal = async () => {
         Swal.fire({
             title: translation.bulkSending,
             html: bulkSendingModalHTML,
+            width: '45rem',
+            heightAuto: '35rem',
             allowOutsideClick: false,
             showCancelButton: true,
             showCloseButton: true,
@@ -1056,9 +1148,18 @@ const showBulkSendingModal = async () => {
             cancelButtonColor: '#d33',
             cancelButtonText: translation.confirmCancel,
             confirmButtonText: translation.approve,
+            preConfirm: () => {
+                let res = handleClick();
+                if (res.success) {
+                    return true;
+                } else {
+                    Swal.showValidationMessage(getErrorMessage(res.errorCode));
+                    return false;
+                }
+            }
         }).then((result) => {
             if (result.isConfirmed) {
-                let bulkSendingData = excelData.map((item, index) => {
+                let bulkSendingData = state.excelData.map((item, index) => {
                     return {
                         id: index,
                         media: item.colA,
@@ -1078,67 +1179,62 @@ const showBulkSendingModal = async () => {
             }
         });
         let body = document.getElementsByClassName('bulk-sending-modal-container')[0];
-        const confirmButton = Swal.getConfirmButton();
-        confirmButton.disabled = true;
-        const updateConfirmButton = () => {
-            confirmButton.disabled = !(state.csvFile && state.message.length > 0);
-        };
+        document.getElementsByClassName("upload-text")[0].textContent = translation.uploadExcelFile
+        document.getElementsByClassName("format-label")[0].textContent = translation.formatPhoneType
         const messageTextArea = document.getElementById('message')
         messageTextArea.placeholder = translation.typeMessage;
-        messageTextArea.addEventListener('input', () => {
-            state.message = messageTextArea.value
-            updateConfirmButton()
-        })
         const fileInput = document.getElementById('excel-file');
-        const deleteButton = document.getElementById('delete-file-button');
-        deleteButton.innerText = translation.deleteFile
-        deleteButton.style.width = "8em";
-        deleteButton.style.height = "2em"
-        deleteButton.addEventListener('click', () => {
-            fileInput.value = ''; // Clear the file input value
-            deleteButton.style.display = 'none'; // Hide the delete button
-            resetData()
-        });
         fileInput.addEventListener('change', async () => {
+            clearData();
             const selectedFile = fileInput.files[0];
             if (selectedFile) {
-                deleteButton.style.display = 'inline-block';
+                const fileName = selectedFile.name;
+                state.fileType = fileName.split('.').pop().toLowerCase();
+                if (state.fileType === Globals.CSV_PARAM) {
+                    let phoneSelector = document.getElementById('phone-format');
+                    let formatType = phoneSelector.value;
+                    ExcelUtils.readExcelFile(selectedFile).then((result) => {
+                        let data = result.data.map(item => {
+                            const formattedPhone = GeneralUtils.formatPhoneNumber(item.colA, formatType)
+                            return {...item, colA: formattedPhone};
+                        });
+                        state.excelData = GeneralUtils.removeDuplicates(data, Globals.COL_A_PARAM)
+                        state.excelHeaders = result.headers
+                        let bulkTable = GeneralUtils.createTable(state.excelHeaders, state.excelData)
+                        bulkTable.style.direction = client.language === Globals.HEBREW_LANGUAGE_PARAM ? "ltr" : "rtl"
+                        body.appendChild(bulkTable)
+                    })
+                } else {
+                    Swal.showValidationMessage(getErrorMessage(Errors.FILE_TYPE_INVALID))
+                }
             }
-            const fileName = selectedFile.name;
-            const fileSuffix = fileName.split('.').pop().toLowerCase();
-            if (fileSuffix === 'csv') {
-                Swal.resetValidationMessage()
-                state.csvFile = true;
-                let phoneSelector = document.getElementById('phone-format');
-                let formatType = phoneSelector.value;
-                ExcelUtils.readExcelFile(selectedFile, formatType).then((result) => {
-                    excelData = result.data;
-                    excelHeaders = result.headers
-                    let tableContainer = document.createElement('div');
-                    tableContainer.className = "fb-table-container";
-                    if (client.language === Globals.HEBREW_LANGUAGE_PARAM) {
-                        tableContainer.style.direction = "ltr"
-                    }
-                    let bulkTable = GeneralUtils.createTable(excelHeaders, excelData)
-                    tableContainer.appendChild(bulkTable)
-                    body.appendChild(tableContainer)
-                })
-            } else {
-                resetData()
-                Swal.showValidationMessage(translation.fileMustToBeCSV);
-
-            }
-            updateConfirmButton();
         });
 
-        function resetData() {
-            Swal.resetValidationMessage()
-            state.csvFile = false;
-            let tableBody = document.getElementsByClassName('fb-table-container')[0]
-            if (tableBody) {
-                tableBody.remove()
+        function clearData() {
+            let fbTable = document.getElementsByClassName('fb-table-container')[0];
+            if (fbTable) {
+                fbTable.remove()
             }
-            updateConfirmButton()
+            Swal.resetValidationMessage()
+        }
+
+        function handleClick() {
+            let errorCode = null, success = false;
+            const messageContent = messageTextArea.value;
+            if (messageContent.length > 0) {
+                if (state.fileType === Globals.CSV_PARAM) {
+                    success = true;
+                } else {
+                    if (state.fileType === '') {
+                        errorCode = Errors.NON_EXISTING_FILE
+                    } else {
+                        errorCode = Errors.FILE_TYPE_INVALID
+                    }
+                }
+            } else {
+                errorCode = Errors.MISSING_TEXT
+            }
+            return {success, errorCode}
         }
 
         const availableFormatters = [
@@ -1146,6 +1242,7 @@ const showBulkSendingModal = async () => {
             , {value: Globals.ISRAEL_PARAM, text: translation.israel}
             , {value: Globals.USA_PARAM, text: translation.usa}]
         const formatSelector = document.getElementById('phone-format')
+        console.log(formatSelector)
         for (let formatter of availableFormatters) {
             let option = document.createElement('option')
             option.value = formatter.value;
@@ -1433,12 +1530,25 @@ function getErrorMessage(errorCode) {
         case Errors.INVALID_PHONE:
             errorMessage = translation.invalidPhoneNotice;
             break;
+        case Errors.TEXT_NOT_MATCH:
+            errorMessage = translation.textNotMatch;
+            break;
         case Errors.MISSING_TEXT:
             errorMessage = translation.messageMustContainsText;
             break;
         case Errors.INVALID_DATE:
             errorMessage = translation.invalidDateNotice;
             break;
+        case Errors.FILE_TYPE_INVALID:
+            errorMessage = translation.fileMustToBeCsv;
+            break
+        case Errors.GENERAL_ERROR:
+            errorMessage = translation.generalErrorNotice
+            break;
+        case Errors.NON_EXISTING_FILE:
+            errorMessage = translation.mustToUploadFileNotice
+            break;
     }
+    errorMessage = client.language === Globals.ENGLISH_LANGUAGE_PARAM ? GeneralUtils.convertToTitle(errorMessage) : errorMessage
     return errorMessage
 }

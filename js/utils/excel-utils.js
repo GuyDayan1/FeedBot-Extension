@@ -13,7 +13,6 @@ export function exportToExcelFile(data, sheetName = 'Sheet', headers) {
         fields: headers,
         data: rows
     });
-
     const utf8Bom = '\uFEFF'; // Byte Order Mark (BOM) for UTF-8
     const csvContent = utf8Bom + csvData;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -27,7 +26,7 @@ export function exportToExcelFile(data, sheetName = 'Sheet', headers) {
 
 
 
-export function readExcelFile(file,formatType) {
+export function readExcelFile1(file,formatType) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.readAsText(file);
@@ -62,6 +61,34 @@ export function readExcelFile(file,formatType) {
     });
 }
 
+export function readExcelFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsText(file);
+        reader.onload = (e) => {
+            const csvData = e.target.result;
+            const parsedData = Papa.parse(csvData, { header: true }); // Assuming the CSV has headers
+            const data = parsedData.data;
+            const headers = parsedData.meta.fields; // Extract the header names
+            const colsSize = Object.keys(data[0]).length;
+            const columnKeys = generateColumnKeys(colsSize);    /// colA colB
+            let excelData = data.map((row) => {
+                const newRow = {};
+                Object.keys(row).forEach((field, index) => {
+                    const key = columnKeys[index];
+                    newRow[key] = row[field];
+                });
+                return newRow
+            })
+            resolve({ data: excelData, headers});
+        };
+        reader.onerror = (error) => {
+            reject(error);
+        };
+    });
+}
+
+
 function generateColumnKeys(numColumns) {
     const columnKeys = [];
     const startCharCode = 'A'.charCodeAt(0);
@@ -70,7 +97,6 @@ function generateColumnKeys(numColumns) {
         const columnName = String.fromCharCode(charCode);
         columnKeys.push('col' + columnName);
     }
-
     return columnKeys;
 }
 

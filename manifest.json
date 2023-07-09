@@ -15,7 +15,7 @@
   "content_scripts": [
     {
       "matches": ["https://web.whatsapp.com/*"],
-      "css": ["css/content.css" , "css/schedulermodal.css" , "css/contactsmodal.css" , "css/groupsmodal.css","css/cellframe.css" , "css/bulkstate.css","css/settings.css", "node_modules/sweetalert2/dist/sweetalert2.css" ,"css/variables.css"],
+      "css": ["css/content.css" , "css/schedulermodal.css" , "css/contactsmodal.css" , "css/groupsmodal.css","css/cellframe.css" , "css/bulkstate.css","css/settings.css","css/bulksendmodal.css", "node_modules/sweetalert2/dist/sweetalert2.css" ,"css/variables.css"],
       "js": ["dist/content.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js"  , "node_modules/papaparse/papaparse.min.js" , "js/jquery.js"]
     }
   ],

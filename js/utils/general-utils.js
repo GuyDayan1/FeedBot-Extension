@@ -49,7 +49,7 @@ export function sleep(seconds) {
 }
 
 export const simulateKeyPress = (type, keyName) => {
-    document.dispatchEvent(new KeyboardEvent(type, { key: keyName, bubbles: true }));
+    document.dispatchEvent(new KeyboardEvent(type, {key: keyName, bubbles: true}));
 };
 
 
@@ -59,8 +59,8 @@ export function removeLeadingZeros(phoneNumber) {
     return numberString
 }
 
-export function convertToTitle(input) {
-    const words = input.toLowerCase().split(' ');
+export function convertToTitle(text) {
+    const words = text.toLowerCase().split(' ');
     const titleCaseWords = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1));
     return titleCaseWords.join(' ');   // Join the title case words back into a single string
 }
@@ -75,20 +75,17 @@ export const deleteTextInput = async (inputElement) => {
 };
 
 
-export const simulateTyping = (input,text) => {
-    return new Promise((resolve, reject) => {
-        const dataTransfer = new DataTransfer();
-        dataTransfer.setData('text', text);
-        const event = new ClipboardEvent('paste', {
-            clipboardData: dataTransfer,
-            bubbles: true
-        });
-        input.click()
-        setTimeout(() => {
-            input.dispatchEvent(event)
-            resolve(true)
-        }, 500)
-    })
+export const pasteText = (input, text) => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text', text);
+    const event = new ClipboardEvent('paste', {
+        clipboardData: dataTransfer,
+        bubbles: true
+    });
+    input.click()
+    setTimeout(() => {
+        input.dispatchEvent(event)
+    }, 750)
 
 };
 
@@ -96,6 +93,7 @@ export const simulateTyping = (input,text) => {
 export function removeSpaces(word) {
     return word.replace(/\s/g, "");
 }
+
 export function listFadeIn(element, duration) {
     let start = performance.now();
     element.style.opacity = "0";
@@ -187,7 +185,7 @@ export function getChatDetails() {
                     chatType = Globals.CONTACT_PARAM;
                 }
                 clearInterval(intervalId);
-                resolve({ chatType, media, chatId });
+                resolve({chatType, media, chatId});
             } else {
                 tries++;
                 if (tries >= 50) {
@@ -236,12 +234,14 @@ export function removeElement(selector) {
 export function capitalizeFirstLetter(word) {
     return word.charAt(0).toUpperCase() + word.slice(1);
 }
+
 export function getDateAsString(currentDate = new Date()) {
     let year = currentDate.getFullYear();
     let month = String(currentDate.getMonth() + 1).padStart(2, '0');
     let day = String(currentDate.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
+
 export function getFullDateAsString(date = new Date()) {
     const year = date.getFullYear();
     const month = ('0' + (date.getMonth() + 1)).slice(-2);
@@ -261,8 +261,9 @@ function clearModalFromDOM(containerClassName) {
 }
 
 
-
 export function createTable(headers, data) {
+    let tableContainer = document.createElement('div');
+    tableContainer.className = "fb-table-container";
     const table = document.createElement('table');
     table.classList.add('fb-table');
     const thead = document.createElement('thead');
@@ -292,7 +293,8 @@ export function createTable(headers, data) {
         tbody.appendChild(row);
     });
     table.appendChild(tbody);
-    return table;
+    tableContainer.appendChild(table)
+    return tableContainer;
 }
 
 export function formatPhoneNumber(phoneNumber, formatType) {
@@ -309,6 +311,18 @@ export function formatPhoneNumber(phoneNumber, formatType) {
     }
     return newPhone;
 }
+
+
+export function removeDuplicates(arr, keyToCheck) {
+    return arr.reduce((accumulator, currentRow) => {
+        const isDuplicate = accumulator.some((item) => item[keyToCheck] === currentRow[keyToCheck]);
+        if (!isDuplicate) {
+            accumulator.push(currentRow);
+        }
+        return accumulator;
+    }, [])
+}
+
 
 export function removeNonDigits(str) {
     return str.replace(/\D/g, '');
@@ -357,15 +371,17 @@ export function waitForElementTextContent(parentElement, targetElementSelector) 
             }
         });
 
-        observer.observe(parentElement, { childList: true, subtree: true });
+        observer.observe(parentElement, {childList: true, subtree: true});
         setTimeout(() => {
             observer.disconnect();
             reject("Timeout: Element with non-empty content not found.");
         }, 5000); // Adjust the timeout value as needed
     });
 }
+
 export function addSelectOptions(selector, selectorName) {
     const optionLength = (selectorName === 'hour') ? 24 : 60;
+
     function addOption(value, text) {
         const option = document.createElement('option');
         option.value = value;
