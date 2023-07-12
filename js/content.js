@@ -5,17 +5,21 @@ import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import * as Errors from "./utils/errors"
 import Swal from "sweetalert2";
-import {GET_FIREBASE_DATA_ACTION} from "./utils/globals";
 
 
 let headerElement;
 let connected = false;
-let client = {state: Globals.UNUSED_STATE, sendingType: "", language: ""};
+let client = {
+    state: Globals.UNUSED_STATE,
+    sendingType: "",
+    language: "",
+    firstLoginDate: "",
+    hasPermission : false
+};
 let defaultUserImage;
 let feedBotIcon;
 let cellFrame;
 let emptyMessagesAlert;
-let firstLoginDate;
 let messagesListHeight;
 let contacts;
 let clockSvg;
@@ -47,7 +51,7 @@ const headerElementObserver = new MutationObserver(async () => {
                 feedBotIcon.addEventListener('click', () => {
                     const feedBotFeaturesList = document.getElementsByClassName("fb-features-dropdown")[0]
                     if (!feedBotFeaturesList) {
-                        addFeedBotFeatures()
+                        showFeedBotFeatures()
                     } else {
                         GeneralUtils.removeElement('.fb-features-dropdown');
                     }
@@ -133,9 +137,11 @@ function addData(data) {
     );
 }
 async function setClientProperties() {
-    firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
-    if (!firstLoginDate) {
+    client.firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
+    client.hasPermission = await ChromeUtils.getFromLocalStorage('hasPermission');
+    if (!client.firstLoginDate) {
         await ChromeUtils.updateLocalStorage('firstLoginDate', GeneralUtils.getFullDateAsString())
+        await ChromeUtils.updateLocalStorage('hasPermission', false)
     }
     GeneralUtils.waitForNode(document.body, WhatsAppGlobals.paneSideElement).then(res => {
         messagesListHeight = res.clientHeight;
@@ -198,7 +204,9 @@ function DOMListener() {
             }
             GeneralUtils.waitForNodeWithTimeOut(document.body, WhatsAppGlobals.conversationHeaderElement, Globals.SECOND * 5).then(async (element) => {
                 let currentChatDetails = await GeneralUtils.getChatDetails()
-                addChatFeatures(currentChatDetails)
+                if (client.hasPermission){
+                    addChatFeatures(currentChatDetails)
+                }
             }).catch(res => {
                 console.log(res)
             })
@@ -245,80 +253,111 @@ async function getSvgWhatsAppElement() {
 }
 
 
-async function addFeedBotFeatures() {
-    const feedBotListFeatures = document.createElement("ul");
-    feedBotListFeatures.className = "fb-features-dropdown";
-    feedBotListFeatures.style.marginLeft = client.language === Globals.HEBREW_LANGUAGE_PARAM ? '3rem' : 'auto'
-    for (let i = 0; i < feedBotListOptions.length; i++) {
-        let feedBotOption = feedBotListOptions[i];
-        const feedBotListItem = document.createElement("li");
-        feedBotListItem.className = "fb-list-item"
-        const textSpan = document.createElement("span");
-        textSpan.textContent = feedBotOption.text;
-        feedBotListItem.appendChild(textSpan)
-        feedBotListFeatures.appendChild(feedBotListItem);
-        switch (feedBotOption.type) {
-            case Globals.SCHEDULED_MESSAGES_TYPE:
-                feedBotListItem.addEventListener("click", () => {
-                    showScheduledMessages()
-                })
-                break;
-            case Globals.SENDING_BY_PHONE_TYPE:
-                feedBotListItem.addEventListener('click', () => {
-                    showSendByPhoneNumberModal()
-                })
-                break;
-            case Globals.BULK_SENDING_TYPE:
-                feedBotListItem.addEventListener('click', () => {
-                    showBulkSendingModal()
-                })
-                break;
-            case Globals.EXPORT_TO_EXCEL_TYPE:
-                const excelSubListFeatures = document.createElement("ul");
-                excelSubListFeatures.className = "fb-excel-features-dropdown";
-                excelSubListFeatures.style[client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'right' : 'left'] = '100%';
-                const arrowSvgData = {
-                    data_testid: "arrow",
-                    data_icon: "arrow",
-                    height: 20,
-                    width: 20,
-                    d: client.language === Globals.HEBREW_LANGUAGE_PARAM ? Globals.LEFT_ARROW_SVG_PATH_VALUE : Globals.RIGHT_ARROW_SVG_PATH_VALUE
-                }
-                const arrowElement = createSvgElement(arrowSvgData);
-                client.language === Globals.HEBREW_LANGUAGE_PARAM ? arrowElement.style.marginRight = "auto" : arrowElement.style.marginLeft = "auto"
-                feedBotListItem.childNodes[0].style.display = "flex"
-                feedBotListItem.childNodes[0].appendChild(arrowElement)
-                feedBotListItem.appendChild(excelSubListFeatures)
-                for (let i = 0; i < excelFeaturesListOptions.length; i++) {
-                    let excelOption = excelFeaturesListOptions[i];
-                    const excelListItem = document.createElement("li");
-                    excelListItem.className = "fb-list-item";
-                    const textSpan = document.createElement("span");
-                    textSpan.textContent = excelOption.text;
-                    excelListItem.appendChild(textSpan)
-                    excelSubListFeatures.appendChild(excelListItem);
-                    switch (excelOption.type) {
-                        case Globals.PARTICIPANTS_FROM_ALL_GROUPS_TYPE:
-                            excelListItem.addEventListener("click", exportAllGroupsParticipantsToExcel)
-                            break;
-                        case Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE:
-                            excelListItem.addEventListener("click", getSelectedGroupsParticipants)
-                            break;
-                        case Globals.CONTACTS_TYPE:
-                            excelListItem.addEventListener("click", showContactsModal)
-                            break;
+async function showFeedBotFeatures() {
+    if (client.hasPermission){
+        const feedBotListFeatures = document.createElement("ul");
+        feedBotListFeatures.className = "fb-features-dropdown";
+        feedBotListFeatures.style.marginLeft = client.language === Globals.HEBREW_LANGUAGE_PARAM ? '3rem' : 'auto'
+        for (let i = 0; i < feedBotListOptions.length; i++) {
+            let feedBotOption = feedBotListOptions[i];
+            const feedBotListItem = document.createElement("li");
+            feedBotListItem.className = "fb-list-item"
+            const textSpan = document.createElement("span");
+            textSpan.textContent = feedBotOption.text;
+            feedBotListItem.appendChild(textSpan)
+            feedBotListFeatures.appendChild(feedBotListItem);
+            switch (feedBotOption.type) {
+                case Globals.SCHEDULED_MESSAGES_TYPE:
+                    feedBotListItem.addEventListener("click", () => {
+                        showScheduledMessages()
+                    })
+                    break;
+                case Globals.SENDING_BY_PHONE_TYPE:
+                    feedBotListItem.addEventListener('click', () => {
+                        showSendByPhoneNumberModal()
+                    })
+                    break;
+                case Globals.BULK_SENDING_TYPE:
+                    feedBotListItem.addEventListener('click', () => {
+                        showBulkSendingModal()
+                    })
+                    break;
+                case Globals.EXPORT_TO_EXCEL_TYPE:
+                    const excelSubListFeatures = document.createElement("ul");
+                    excelSubListFeatures.className = "fb-excel-features-dropdown";
+                    excelSubListFeatures.style[client.language === Globals.HEBREW_LANGUAGE_PARAM ? 'right' : 'left'] = '100%';
+                    const arrowSvgData = {
+                        data_testid: "arrow",
+                        data_icon: "arrow",
+                        height: 20,
+                        width: 20,
+                        d: client.language === Globals.HEBREW_LANGUAGE_PARAM ? Globals.LEFT_ARROW_SVG_PATH_VALUE : Globals.RIGHT_ARROW_SVG_PATH_VALUE
                     }
-                }
-                break;
-            case Globals.SETTINGS_TYPE:
-                feedBotListItem.addEventListener("click", () => {
-                    showSettingsModal()
-                })
-                break;
+                    const arrowElement = createSvgElement(arrowSvgData);
+                    client.language === Globals.HEBREW_LANGUAGE_PARAM ? arrowElement.style.marginRight = "auto" : arrowElement.style.marginLeft = "auto"
+                    feedBotListItem.childNodes[0].style.display = "flex"
+                    feedBotListItem.childNodes[0].appendChild(arrowElement)
+                    feedBotListItem.appendChild(excelSubListFeatures)
+                    for (let i = 0; i < excelFeaturesListOptions.length; i++) {
+                        let excelOption = excelFeaturesListOptions[i];
+                        const excelListItem = document.createElement("li");
+                        excelListItem.className = "fb-list-item";
+                        const textSpan = document.createElement("span");
+                        textSpan.textContent = excelOption.text;
+                        excelListItem.appendChild(textSpan)
+                        excelSubListFeatures.appendChild(excelListItem);
+                        switch (excelOption.type) {
+                            case Globals.PARTICIPANTS_FROM_ALL_GROUPS_TYPE:
+                                excelListItem.addEventListener("click", exportAllGroupsParticipantsToExcel)
+                                break;
+                            case Globals.PARTICIPANTS_FROM_SELECTED_GROUPS_TYPE:
+                                excelListItem.addEventListener("click", getSelectedGroupsParticipants)
+                                break;
+                            case Globals.CONTACTS_TYPE:
+                                excelListItem.addEventListener("click", showContactsModal)
+                                break;
+                        }
+                    }
+                    break;
+                case Globals.SETTINGS_TYPE:
+                    feedBotListItem.addEventListener("click", () => {
+                        showSettingsModal()
+                    })
+                    break;
+            }
+            feedBotIcon.appendChild(feedBotListFeatures);
+            GeneralUtils.listFadeIn(feedBotListFeatures, 400)
         }
-        feedBotIcon.appendChild(feedBotListFeatures);
-        GeneralUtils.listFadeIn(feedBotListFeatures, 400)
+    }else {
+        showPermissionModal()
     }
+}
+
+function showPermissionModal() {
+    Swal.fire({
+        title: GeneralUtils.convertToTitle(translation.allowingAccess),
+        input: "password",
+        inputAutoTrim: true,
+        inputPlaceholder: GeneralUtils.convertToTitle(translation.enterPassword),
+        inputAttributes: {
+            id: 'password-input'
+        },
+        allowOutsideClick: false,
+        showCancelButton: true,
+        showCloseButton: true,
+        reverseButtons: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        cancelButtonText: translation.confirmCancel,
+        confirmButtonText: translation.approve,
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            if (result.value.toString() === Globals.ACCESS_PASSWORD) {
+                client.hasPermission = true;
+                await ChromeUtils.updateLocalStorage("hasPermission", true)
+            }
+        }
+    });
 }
 
 async function showSettingsModal() {
@@ -360,9 +399,6 @@ async function showSettingsModal() {
         confirmButtonText: translation.approve,
     }).then(res => {
         if (res.isConfirmed){
-            let test = document.getElementsByClassName("_199zF _3j691 _2IMPQ")[0]
-            var propertyDescriptors = Object.getOwnPropertyDescriptors(test);
-            console.log("Element property descriptors:", propertyDescriptors);
             //fetchDataFromFB()
         }
     })

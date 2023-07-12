@@ -65,5 +65,7 @@
   "textNotMatch" : "הטקסט לא תואם לתוכן ההודעה",
   "language": "בחר שפה",
   "hebrew": "עברית",
-  "english": "אנגלית"
+  "english": "אנגלית",
+  "allowingAccess": "הרשאת גישה",
+  "enterPassword": "הכנס סיסמא"
 }

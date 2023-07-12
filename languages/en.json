@@ -64,5 +64,7 @@
   "textNotMatch" : "Text not match to message content",
   "language": "language",
   "hebrew": "hebrew",
-  "english": "english"
+  "english": "english",
+  "allowingAccess" : "allow access",
+  "enterPassword" : "enter password"
 }

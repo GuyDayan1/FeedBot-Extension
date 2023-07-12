@@ -1,12 +1,12 @@
 import * as GeneralUtils from "./general-utils";
 
 
-export function getActiveTabURL() {
-    chrome.tabs.query({active: true, currentWindow: true}, tabs => {
-        const url = tabs[0].url;
-        console.log(url);
-    });
-}
+// export function getActiveTabURL() {
+//     chrome.tabs.query({active: true, currentWindow: true}, tabs => {
+//         const url = tabs[0].url;
+//         console.log(url);
+//     });
+// }
 
 export function clearStorage() {
     chrome.storage.local.clear(() => {
