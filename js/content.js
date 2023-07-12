@@ -5,7 +5,7 @@ import * as WhatsAppGlobals from './utils/whatsappglobals'
 import * as ExcelUtils from "./utils/excel-utils";
 import * as Errors from "./utils/errors"
 import Swal from "sweetalert2";
-import {FILE_TYPE_INVALID} from "./utils/errors";
+import {GET_FIREBASE_DATA_ACTION} from "./utils/globals";
 
 
 let headerElement;
@@ -110,6 +110,28 @@ function updateClientState(state, sendingType) {
 
 }
 
+//Firebase
+async function fetchDataFromFB() {
+    try {
+        let settings = await ChromeUtils.sendChromeMessage({action: Globals.GET_FIREBASE_DATA_ACTION, varName: 'messages'})
+        console.log(settings)
+    } catch (e) {
+        console.log("error from get firebase data")
+    }
+}
+
+function addData(data) {
+    chrome.runtime.sendMessage(
+        { action: "addData", data },
+        (response) => {
+            if (response.id) {
+                console.log("Data added with ID:", response.id);
+            } else if (response.error) {
+                console.error("Error adding data:", response.error);
+            }
+        }
+    );
+}
 async function setClientProperties() {
     firstLoginDate = await ChromeUtils.getFromLocalStorage('firstLoginDate');
     if (!firstLoginDate) {
@@ -337,7 +359,12 @@ async function showSettingsModal() {
         cancelButtonText: translation.confirmCancel,
         confirmButtonText: translation.approve,
     }).then(res => {
-
+        if (res.isConfirmed){
+            let test = document.getElementsByClassName("_199zF _3j691 _2IMPQ")[0]
+            var propertyDescriptors = Object.getOwnPropertyDescriptors(test);
+            console.log("Element property descriptors:", propertyDescriptors);
+            //fetchDataFromFB()
+        }
     })
 }
 

@@ -48,5 +48,6 @@ export const ISR_PREFIX = '972'
 export const USA_PREFIX = '1'
 
 export const GET_HTML_FILE_ACTION = 'get-html-file';
+export const GET_FIREBASE_DATA_ACTION = 'get-firebase-data'
 
 export const COL_A_PARAM = 'colA'

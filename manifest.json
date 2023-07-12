@@ -6,14 +6,19 @@
   "background": {
     "service_worker": "dist/background.js"
   },
+  "externally_connectable": {
+    "matches": [ "*://*/*"]
+  },
   "options_ui": {
     "page" : "html/options.html"  ,
     "open_in_tab" : false
   },
-  "permissions": [ "identity","storage","unlimitedStorage","contextMenus","tabs","scripting","activeTab","debugger"],
-  "host_permissions": ["https://web.whatsapp.com/*"],
+  "permissions": ["identity","storage",
+    "unlimitedStorage","contextMenus","tabs","scripting","activeTab","debugger"],
+  "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
+      "run_at": "document_end",
       "matches": ["https://web.whatsapp.com/*"],
       "css": ["css/content.css" , "css/schedulermodal.css" , "css/contactsmodal.css" , "css/groupsmodal.css","css/cellframe.css" , "css/bulkstate.css","css/settings.css","css/bulksendmodal.css", "node_modules/sweetalert2/dist/sweetalert2.css" ,"css/variables.css"],
       "js": ["dist/content.js" , "node_modules/sweetalert2/dist/sweetalert2.all.min.js"  , "node_modules/papaparse/papaparse.min.js" , "js/jquery.js"]
@@ -23,7 +28,7 @@
   "web_accessible_resources": [
     {
       "resources": ["images/*"  , "css/*" , "languages/*" ,"icons/*"],
-      "matches": ["https://web.whatsapp.com/*"]
+      "matches": ["<all_urls>"]
     }
   ],
   "icons": {
